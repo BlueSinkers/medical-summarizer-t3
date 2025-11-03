@@ -38,7 +38,7 @@
             align-items: center; 
         }
         .btn {
-            background-color: #4CAF50; /* Green */
+            background-color: #4CAF50;
             color: white;
             padding: 12px 25px;
             border: none;
@@ -70,7 +70,7 @@
 
         <div id="summaryOutput" style="margin-top: 40px; text-align: left; background-color: #e9ecef; padding: 20px; border-radius: 8px; min-height: 100px; border: 1px solid #ced4da; display: none;">
             <h2>Summary:</h2>
-            <p id="summaryText">Your summary will appear here after processing.</p>
+            <p id="summaryText">Summary will appear here after processing.</p>
         </div>
     </div>
 
@@ -85,13 +85,13 @@
         document.getElementById('summarizeBtn').addEventListener('click', function() {
             const uploadInput = document.getElementById('pdfUpload');
             if (uploadInput.files.length === 0) {
-                alert('Please upload a PDF file first!');
+                alert('Please upload a PDF file first');
                 return;
             }
-            alert('Summarizing report...\n(In a real app, this would trigger the summarization process)');
+            alert('Summarizing report...\n(Boo! Got yo Ass! Happy Halloween gamer!)');
             // Example summary output
             document.getElementById('summaryOutput').style.display = 'block';
-            document.getElementById('summaryText').innerText = 'This is a simulated summary of your medical report. Key findings include normal blood pressure, stable condition, and a follow-up recommended in 2 weeks.';
+            document.getElementById('summaryText').innerText = 'This is a simulated summary of medical report. Key findings include normal blood pressure, stable condition, and a follow-up recommended in 1-2 weeks.';
         });
     </script>
 </body>
