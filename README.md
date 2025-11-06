@@ -3,9 +3,11 @@ BigThink AI Project - Team 3 - Medical Report Summarizer.
 
 Grounding Agent with Claude Code
 
-# Create a virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+# Make sure to install SDK
+pip install anthropic
 
-# Install necessary packages
-pip install openai anthropic python-dotenv
+# Utalizing Sonnet 
+
+https://docs.claude.com/en/docs/about-claude/models/overview
+https://docs.claude.com/en/docs/about-claude/models/overview
+
