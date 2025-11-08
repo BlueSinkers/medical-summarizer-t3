@@ -4,8 +4,11 @@ import pdfjsWorker from 'pdfjs-dist/build/pdf.worker?url';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
+interface PDFUploadProps {
+  onExtract: (text: string) => void;
+}
 
-export default function PDFUpload({ onExtract }: { onExtract: (text: string) => void }) {
+export default function PDFUpload({ onExtract }: PDFUploadProps) {
   const [loading, setLoading] = useState(false);
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
