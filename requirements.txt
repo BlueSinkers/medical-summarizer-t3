@@ -1,0 +1,25 @@
+streamlit
+python-dotenv
+
+# LLM + embeddings
+openai>=1.40.0
+langchain
+langchain-openai
+langchain-community
+langchain-text-splitters
+tiktoken
+
+# Vector DB (choose one — FAISS easiest)
+faiss-cpu
+
+# Loader utils
+pypdf
+
+# Local LLM + embeddings
+sentence-transformers
+torch
+
+# (Optional alternative local models)
+# chromadb
+# sentence-transformers
+# langchain-ollama
