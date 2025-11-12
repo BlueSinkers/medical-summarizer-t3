@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.env
+
+# Frontend
+node_modules/
+dist/
+build/
+
+# Local KB & datasets
+kb/
+*.pdf
+*.csv
+*.xlsx
+*.zip
+
+# OS files
+.DS_Store

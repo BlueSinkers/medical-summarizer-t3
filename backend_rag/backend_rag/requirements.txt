@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+pypdf
+regex
+pandas
+langchain
+langchain-community
+langchain-text-splitters
+sentence-transformers
+faiss-cpu
+torch
