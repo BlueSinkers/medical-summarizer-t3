@@ -1,7 +1,0 @@
-{
-  "kb_fingerprint": "7a1ee7d431da2d72cc62f6ee02eb3138eb5043ac31496f2f4ed27abede276d84",
-  "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
-  "built_at": 1762986056,
-  "chunk_size": 800,
-  "chunk_overlap": 120
-}
