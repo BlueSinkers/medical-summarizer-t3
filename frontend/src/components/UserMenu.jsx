@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUser, FiLogOut, FiChevronDown, FiSettings, FiUser as FiUserIcon } from 'react-icons/fi';
+import { FiUser, FiLogOut, FiChevronDown, FiUser as FiUserIcon } from 'react-icons/fi';
 import { FcGoogle } from 'react-icons/fc';
 
 const UserMenu = ({ user, onLogout }) => {
@@ -9,7 +9,7 @@ const UserMenu = ({ user, onLogout }) => {
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
-  // Close dropdown when clicking outside or pressing Escape
+  // Close dropdown when clicking outside or when sidebar is toggled
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -17,18 +17,25 @@ const UserMenu = ({ user, onLogout }) => {
       }
     };
 
-    const handleEscape = (event) => {
-      if (event.key === 'Escape') {
-        setIsOpen(false);
-      }
+    // Close dropdown when clicking on sidebar toggle
+    const handleSidebarToggle = () => {
+      setIsOpen(false);
     };
 
+    // Add event listeners
     document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
     
+    // Listen for sidebar toggle events
+    const sidebarToggles = document.querySelectorAll('.sidebar-toggle, .hamburger-menu');
+    sidebarToggles.forEach(toggle => {
+      toggle.addEventListener('click', handleSidebarToggle);
+    });
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
+      sidebarToggles.forEach(toggle => {
+        toggle.removeEventListener('click', handleSidebarToggle);
+      });
     };
   }, []);
 
@@ -86,10 +93,20 @@ const UserMenu = ({ user, onLogout }) => {
     <div className="user-menu" ref={dropdownRef}>
       <button 
         className="user-menu-button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setIsOpen(!isOpen);
+          }
+        }}
         aria-haspopup="true"
         aria-expanded={isOpen}
         aria-label="User menu"
+        type="button"
       >
         <div className="user-avatar">
           {user.picture ? (

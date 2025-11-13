@@ -39,15 +39,33 @@ export const getDocuments = async (api) => {
 
 // Delete a document
 export const deleteDocument = async (api, documentId) => {
+  if (!documentId) {
+    const error = new Error('No document ID provided');
+    error.code = 'MISSING_DOCUMENT_ID';
+    throw error;
+    throw new Error('No document ID provided for deletion');
+  }
+  
   try {
     const response = await api.delete(`/documents/${documentId}`);
     return response.data;
   } catch (error) {
-    console.error('Error deleting document:', error);
+    console.error('Error deleting document:', {
+      error,
+      documentId,
+      status: error.response?.status,
+      data: error.response?.data
+    });
+    
     if (error.response?.status === 401) {
       console.log('Authentication required');
       // The AuthContext will handle redirecting to login if needed
+    } else if (error.response?.status === 404) {
+      throw new Error('Document not found or already deleted');
+    } else if (!error.response) {
+      throw new Error('Network error. Please check your connection.');
+    } else {
+      throw new Error(error.response.data?.error || 'Failed to delete document');
     }
-    throw error;
   }
 };

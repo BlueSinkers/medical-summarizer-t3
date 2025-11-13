@@ -77,25 +77,46 @@ router.get('/', isAuthenticated, async (req, res) => {
 
 // Delete document
 router.delete('/:id', isAuthenticated, async (req, res) => {
+  let document;
   try {
-    const document = await Document.findOne({ _id: req.params.id, userId: req.user.id });
+    document = await Document.findOne({ _id: req.params.id, userId: req.user.id });
     
     if (!document) {
       return res.status(404).json({ error: 'Document not found' });
     }
 
-    // Delete file from filesystem
-    fs.unlink(document.path, (err) => {
-      if (err) console.error('Error deleting file:', err);
-    });
-
-    // Delete from database
+    // First delete from database
     await Document.deleteOne({ _id: req.params.id });
+    
+    // Then delete the file from filesystem
+    try {
+      if (fs.existsSync(document.path)) {
+        fs.unlinkSync(document.path);
+      }
+    } catch (fsError) {
+      console.error('Error deleting file from filesystem:', fsError);
+      // Continue even if file deletion fails, as the DB record is already deleted
+    }
     
     res.json({ message: 'Document deleted successfully' });
   } catch (error) {
     console.error('Error deleting document:', error);
-    res.status(500).json({ error: 'Error deleting document' });
+    
+    // If we have the document but deletion failed, try to clean up the file
+    if (document?.path) {
+      try {
+        if (fs.existsSync(document.path)) {
+          fs.unlinkSync(document.path);
+        }
+      } catch (cleanupError) {
+        console.error('Error during cleanup after failed deletion:', cleanupError);
+      }
+    }
+    
+    res.status(500).json({ 
+      error: 'Error deleting document',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 

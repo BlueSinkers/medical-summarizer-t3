@@ -6,27 +6,19 @@ import ProtectedRoute from './components/ProtectedRoute';
 import UserMenu from './components/UserMenu';
 import { 
   FiUpload, 
-  FiFileText, 
-  FiClock, 
-  FiGithub, 
-  FiActivity, 
-  FiMenu, 
-  FiX, 
   FiFile, 
   FiChevronRight, 
-  FiTrash2,
-  FiMessageSquare,
-  FiSearch,
-  FiArrowLeft,
-  FiSend,
+  FiMenu, 
+  FiX, 
+  FiActivity, 
+  FiMessageSquare, 
   FiUser, 
-  FiLogOut,
-  FiChevronDown,
-  FiDownload,
-  FiLoader,
+  FiLoader, 
+  FiCheckCircle, 
   FiAlertCircle,
-  FiCheckCircle,
-  FiSearch as FiSearchIcon
+  FiTrash2,
+  FiDownload,
+  FiGithub
 } from 'react-icons/fi';
 import * as documentService from './services/documentService';
 import DocumentSearch from './pages/DocumentSearch';
@@ -123,6 +115,52 @@ function MedicalSummarizer() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  // Format time since upload
+  const formatTimeAgo = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.floor((now - date) / 1000);
+    
+    const intervals = {
+      year: 31536000,
+      month: 2592000,
+      week: 604800,
+      day: 86400,
+      hour: 3600,
+      minute: 60
+    };
+    
+    for (const [unit, secondsInUnit] of Object.entries(intervals)) {
+      const interval = Math.floor(seconds / secondsInUnit);
+      if (interval >= 1) {
+        return interval === 1 ? `1 ${unit} ago` : `${interval} ${unit}s ago`;
+      }
+    }
+    
+    return 'Just now';
+  };
+
+  // Format file size
+  const formatFileSize = (bytes) => {
+    if (!bytes) return '';
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  // Format date
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Recent';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
 
   // Handle file selection
   const handleFileChange = (e) => {
@@ -265,28 +303,84 @@ function MedicalSummarizer() {
     }
   }, []);
 
-  // Handle document deletion
   const handleDeleteDocument = async (docId, e) => {
-    e.stopPropagation(); // Prevent triggering the document select
+    e?.stopPropagation(); // Prevent triggering the document select
     
-    if (window.confirm('Are you sure you want to delete this document?')) {
-      try {
-        setIsDeleting(docId);
-        await deleteDocument(docId);
-        
-        // Update the UI by removing the deleted document
-        setRecentDocuments(prev => prev.filter(doc => doc.id !== docId));
-        
-        // Clear the summary if the deleted document was being viewed
-        if (summary && summary.includes(docId)) {
-          setSummary('');
-        }
-      } catch (error) {
-        console.error('Error deleting document:', error);
-        alert('Failed to delete document. Please try again.');
-      } finally {
-        setIsDeleting(false);
+    // Get the document first to ensure we have the correct ID
+    const docToDelete = recentDocuments.find(doc => doc.id === docId || doc._id === docId);
+    
+    if (!docToDelete) {
+      console.error('Document not found in the current list');
+      setUploadStatus('error');
+      setSummary('Error: Document not found');
+      return;
+    }
+
+    // Use the document's _id if available, otherwise use the provided ID
+    const documentId = docToDelete._id || docToDelete.id || docId;
+    
+    if (!documentId) {
+      console.error('No valid document ID found');
+      setUploadStatus('error');
+      setSummary('Error: Invalid document ID');
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to delete this document? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setIsDeleting(documentId);
+      const docName = docToDelete.originalName || docToDelete.originalname || 'document';
+      
+      // Call the delete API with the correct document ID
+      await documentService.deleteDocument(api, documentId);
+      
+      // Update the UI by removing the deleted document
+      setRecentDocuments(prev => 
+        prev.filter(doc => doc._id !== documentId && doc.id !== documentId)
+      );
+      
+      // Show success message
+      setUploadStatus('success');
+      setSummary(`Document "${docName}" has been deleted.`);
+      
+      // Clear the summary if the deleted document was being viewed
+      if (summary && (summary.includes(documentId) || 
+          (docToDelete.id && summary.includes(docToDelete.id)) || 
+          (docToDelete._id && summary.includes(docToDelete._id)))) {
+        setSummary('');
       }
+      
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      
+      let errorMessage = 'Failed to delete document. ';
+      if (error.response) {
+        // Server responded with an error
+        errorMessage += error.response.data?.error || `Server error: ${error.response.status}`;
+      } else if (error.request) {
+        // Request was made but no response received
+        errorMessage += 'No response from server. Please check your connection.';
+      } else {
+        // Something else happened
+        errorMessage += error.message || 'An unknown error occurred.';
+      }
+      
+      setUploadStatus('error');
+      setSummary(errorMessage);
+    } finally {
+      // Clear any status messages after 5 seconds
+      const timer = setTimeout(() => {
+        setUploadStatus('');
+        setSummary('');
+      }, 5000);
+      
+      setIsDeleting(false);
+      
+      // Clean up the timeout if the component unmounts
+      return () => clearTimeout(timer);
     }
   };
 
@@ -498,36 +592,63 @@ function MedicalSummarizer() {
           {recentDocuments.length > 0 ? (
             recentDocuments.map((doc, index) => (
               <div
-                key={`doc-${doc.id || `${doc.originalName || doc.filename || 'doc'}-${index}`}`}
-                className="document-item"
-                onClick={() => handleDocumentSelect(doc)}
+                key={`doc-${doc.id || doc._id || `${doc.originalName || doc.filename || 'doc'}-${index}`}`}
+                className={`document-item ${isDeleting === (doc.id || doc._id) ? 'deleting' : ''}`}
                 role="listitem"
               >
-                <div className="document-icon-container">
-                  <FiFile className="document-icon" />
-                  <span className="document-format">
-                    {doc.originalname?.split('.').pop().toUpperCase() || 'FILE'}
-                  </span>
-                </div>
-                <div className="document-info">
-                  <div className="document-name" title={doc.originalName || doc.originalname || doc.name || 'Untitled Document'}>
-                    {doc.originalName || doc.originalname || doc.name || 'Untitled Document'}
+                <div className="document-content" onClick={() => handleDocumentSelect(doc)}>
+                  <div className="document-icon-container">
+                    <FiFile className="document-icon" />
+                    <span className="document-format" title="File format">
+                      {doc.originalname?.split('.').pop().toUpperCase() || 'FILE'}
+                    </span>
                   </div>
-                  <div className="document-meta">
-                    <span className="document-size">{doc.size || ''}</span>
-                    <span className="document-separator">•</span>
-                    <span className="document-date">{doc.timeAgo || 'Just now'}</span>
+                  <div className="document-info">
+                    <div className="document-name" title={doc.originalName || doc.originalname || doc.name || 'Untitled Document'}>
+                      {doc.originalName || doc.originalname || doc.name || 'Untitled Document'}
+                    </div>
+                    <div className="document-meta">
+                      <span className="document-upload-time" title="Uploaded time">
+                        {doc.uploadedAt ? formatTimeAgo(doc.uploadedAt) : 'Just now'}
+                      </span>
+                    </div>
                   </div>
                 </div>
-                <button
-                  className="delete-document"
-                  onClick={(e) => handleDeleteDocument(doc.id, e)}
-                  disabled={isDeleting === doc.id}
-                  aria-label={`Delete ${doc.originalname || doc.name}`}
-                >
-                  <FiTrash2 size={16} />
-                </button>
-                <FiChevronRight className="document-arrow" />
+                <div className="document-actions">
+                  <a
+                    href={`${import.meta.env.VITE_API_URL || window.location.origin}/api/documents/download/${doc.id || doc._id}`}
+                    className="download-button"
+                    onClick={(e) => e.stopPropagation()}
+                    download
+                    title="Download document"
+                  >
+                    <FiDownload size={14} />
+                  </a>
+                  <button
+                    className="delete-button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteDocument(doc.id || doc._id, e);
+                    }}
+                    disabled={isDeleting === (doc.id || doc._id)}
+                    aria-label="Delete document"
+                    title="Delete document"
+                  >
+                    {isDeleting === (doc.id || doc._id) ? (
+                      <div className="spinner" style={{
+                        width: '14px',
+                        height: '14px',
+                        border: '2px solid #e5e7eb',
+                        borderTopColor: '#3b82f6',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite',
+                        margin: '0 auto'
+                      }} />
+                    ) : (
+                      <FiTrash2 size={14} />
+                    )}
+                  </button>
+                </div>
               </div>
             ))
           ) : (
