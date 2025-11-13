@@ -65,22 +65,53 @@ export const AuthProvider = ({ children }) => {
   // Check if user is already logged in on initial load
   useEffect(() => {
     const checkAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
       try {
-        const token = localStorage.getItem('token');
-        if (token) {
-          const response = await api.get('/auth/me');
-          if (response.data.user) {
-            setUser(response.data.user);
-          } else {
-            // Invalid token, clear it
-            localStorage.removeItem('token');
-            delete api.defaults.headers.common['Authorization'];
-          }
+        console.log('Checking auth with token:', token);
+        // Set the authorization header
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        
+        // Try to fetch user data
+        console.log('Sending request to /auth/me');
+        const response = await api.get('/auth/me');
+        console.log('Auth response:', response.data);
+        
+        if (response.data.name) {
+          console.log('User authenticated:', response.data.email);
+          setUser({
+            name: response.data.name,
+            email: response.data.email,
+            picture: response.data.picture,
+            id: response.data.id,
+            isVerified: response.data.isVerified
+          });
+        } else {
+          console.error('No user data in response');
+          throw new Error('No user data received');
         }
       } catch (error) {
-        console.error('Auth check failed:', error);
-        localStorage.removeItem('token');
-        delete api.defaults.headers.common['Authorization'];
+        console.error('Auth check failed:', {
+          message: error.message,
+          status: error.response?.status,
+          data: error.response?.data,
+          config: {
+            url: error.config?.url,
+            method: error.config?.method,
+            headers: error.config?.headers
+          }
+        });
+        // Only clear token if it's an auth error
+        if (error.response && error.response.status === 401) {
+          console.log('Clearing invalid token');
+          localStorage.removeItem('token');
+          delete api.defaults.headers.common['Authorization'];
+          setUser(null);
+        }
       } finally {
         setLoading(false);
       }
@@ -95,7 +126,15 @@ export const AuthProvider = ({ children }) => {
       const response = await api.post('/auth/login', credentials);
       
       if (response.data.token) {
-        setUser(response.data.user);
+        const userData = response.data.user || response.data;
+        setUser({
+          name: userData.name,
+          email: userData.email,
+          picture: userData.picture,
+          id: userData.id || userData._id,
+          isVerified: userData.isVerified
+        });
+        
         localStorage.setItem('token', response.data.token);
         api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
         
@@ -122,7 +161,15 @@ export const AuthProvider = ({ children }) => {
       const response = await api.post('/auth/register', userData);
       
       if (response.data.token) {
-        setUser(response.data.user);
+        const userData = response.data.user || response.data;
+        setUser({
+          name: userData.name,
+          email: userData.email,
+          picture: userData.picture,
+          id: userData.id || userData._id,
+          isVerified: userData.isVerified || false
+        });
+        
         localStorage.setItem('token', response.data.token);
         api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
         

@@ -25,15 +25,16 @@ import {
   FiDownload,
   FiLoader,
   FiAlertCircle,
+  FiCheckCircle,
   FiSearch as FiSearchIcon
 } from 'react-icons/fi';
-import { uploadDocument, getDocuments, deleteDocument } from './services/documentService';
+import * as documentService from './services/documentService';
 import DocumentSearch from './pages/DocumentSearch';
 import './App.css';
 import './index.css';
 
 function MedicalSummarizer() {
-  const { user, logout } = useAuth();
+  const { user, logout, api } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const isInitialMount = useRef(true);
@@ -97,7 +98,7 @@ function MedicalSummarizer() {
   useEffect(() => {
     const fetchDocuments = async () => {
       try {
-        const docs = await getDocuments();
+        const docs = await documentService.getDocuments(api);
         setRecentDocuments(docs);
       } catch (error) {
         console.error('Error fetching documents:', error);
@@ -152,6 +153,13 @@ function MedicalSummarizer() {
     }
   };
 
+  // Check if file already exists in recent documents
+  const isDuplicateFile = (fileName) => {
+    return recentDocuments.some(doc => 
+      doc.originalName === fileName || doc.filename === fileName || doc.name === fileName
+    );
+  };
+
   // Handle file upload
   const handleFileUpload = async (fileToUpload) => {
     if (!fileToUpload) return;
@@ -174,6 +182,13 @@ function MedicalSummarizer() {
       return;
     }
 
+    // Check for duplicate file
+    if (isDuplicateFile(fileToUpload.name)) {
+      setUploadStatus('error');
+      setSummary(`A file named "${fileToUpload.name}" already exists.`);
+      return;
+    }
+
     setIsLoading(true);
     setUploadStatus('uploading');
     setUploadProgress(0);
@@ -192,21 +207,20 @@ function MedicalSummarizer() {
       }, 200);
 
       // Upload the file
-      const response = await uploadDocument(fileToUpload);
+      const response = await documentService.uploadDocument(api, fileToUpload);
       
       clearInterval(progressInterval);
       setUploadProgress(100);
       setUploadStatus('success');
       
-      // Update recent documents
-      const updatedDocs = await getDocuments();
-      setRecentDocuments(updatedDocs);
+      // Update recent documents by adding the new document
+      setRecentDocuments(prevDocs => [response.document, ...prevDocs]);
       
-      // Show success message
-      setSummary('File uploaded successfully!');
+      // Show success message with the filename
+      setSummary(`Successfully uploaded: ${response.document.originalName}`);
       
       // Reset after 3 seconds
-      setTimeout(() => {
+      const resetTimer = setTimeout(() => {
         setUploadStatus('');
         setUploadProgress(0);
         setSummary('');
@@ -214,7 +228,10 @@ function MedicalSummarizer() {
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
-      }, 2000);
+      }, 3000);
+      
+      // Clear the timeout when component unmounts
+      return () => clearTimeout(resetTimer);
       
     } catch (error) {
       console.error('Upload error:', error);
@@ -317,9 +334,18 @@ function MedicalSummarizer() {
       <header className="app-header">
         <div className="container">
           <div className="header-content">
-            <div className="logo">
-              <FiFileText className="logo-icon" />
-              <h1>MediSum</h1>
+            <div className="header-left">
+              <button 
+                className="sidebar-toggle" 
+                onClick={toggleSidebar}
+                aria-label="Toggle sidebar"
+              >
+                <FiMenu className="menu-icon" />
+              </button>
+              <Link to="/" className="logo">
+                <FiActivity className="logo-icon" />
+                <h1>MediSum</h1>
+              </Link>
             </div>
             <nav className="nav-links">
               {user ? (
@@ -346,6 +372,43 @@ function MedicalSummarizer() {
 
       {/* Main Content */}
       <main className="main-content">
+        {/* Upload Status */}
+        {uploadStatus && (
+          <div className={`upload-status ${uploadStatus}`}>
+            <div className="progress-bar">
+              <div 
+                className="progress" 
+                style={{ width: `${uploadProgress}%` }}
+              ></div>
+            </div>
+            <div className="status-content">
+              <div className="status-message">
+                {uploadStatus === 'uploading' ? (
+                  <div className="loading-spinner">
+                    <FiLoader className="spin" /> Uploading...
+                  </div>
+                ) : (
+                  <>
+                    <span className="status-icon">
+                      {uploadStatus === 'success' ? <FiCheckCircle /> : <FiAlertCircle />}
+                    </span>
+                    <span className="status-text">{summary}</span>
+                    {uploadStatus === 'success' && (
+                      <button 
+                        className="close-status"
+                        onClick={() => setUploadStatus('')}
+                        aria-label="Close message"
+                      >
+                        <FiX />
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="hero-section">
           <h1 className="hero-title">Medical Document Summarizer</h1>
           <p className="hero-subtitle">
@@ -433,11 +496,12 @@ function MedicalSummarizer() {
         
         <div className="document-list">
           {recentDocuments.length > 0 ? (
-            recentDocuments.map((doc) => (
+            recentDocuments.map((doc, index) => (
               <div
-                key={doc.id}
+                key={`doc-${doc.id || `${doc.originalName || doc.filename || 'doc'}-${index}`}`}
                 className="document-item"
                 onClick={() => handleDocumentSelect(doc)}
+                role="listitem"
               >
                 <div className="document-icon-container">
                   <FiFile className="document-icon" />
@@ -446,8 +510,8 @@ function MedicalSummarizer() {
                   </span>
                 </div>
                 <div className="document-info">
-                  <div className="document-name" title={doc.originalname || doc.name}>
-                    {doc.originalname || doc.name}
+                  <div className="document-name" title={doc.originalName || doc.originalname || doc.name || 'Untitled Document'}>
+                    {doc.originalName || doc.originalname || doc.name || 'Untitled Document'}
                   </div>
                   <div className="document-meta">
                     <span className="document-size">{doc.size || ''}</span>

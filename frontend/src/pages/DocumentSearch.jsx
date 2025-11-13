@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiSearch, FiArrowLeft, FiFileText, FiMessageSquare, FiFile, FiChevronRight, FiLoader, FiX } from 'react-icons/fi';
-import { getDocuments } from '../services/documentService';
+import { useAuth } from '../contexts/AuthContext';
+import * as documentService from '../services/documentService';
 import { debounce } from 'lodash';
 import '../App.css';
 
@@ -13,6 +14,7 @@ const DocumentSearch = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const { api } = useAuth();
 
   // Debounced search function
   const performSearch = useCallback(
@@ -55,7 +57,7 @@ const DocumentSearch = () => {
     const fetchDocuments = async () => {
       try {
         setIsLoading(true);
-        const docs = await getDocuments();
+        const docs = await documentService.getDocuments(api);
         setDocuments(docs);
         setFilteredDocs(docs);
       } catch (err) {

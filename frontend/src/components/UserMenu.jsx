@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiUser, FiLogOut, FiChevronDown, FiSettings, FiUser as FiUserIcon } from 'react-icons/fi';
+import { FcGoogle } from 'react-icons/fc';
 
 const UserMenu = ({ user, onLogout }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -92,21 +93,27 @@ const UserMenu = ({ user, onLogout }) => {
       >
         <div className="user-avatar">
           {user.picture ? (
-            <img 
-              src={user.picture} 
-              alt={user.name || 'User'} 
-              className="avatar-image" 
-              onError={handleImageError}
-            />
+            <>
+              <img 
+                src={user.picture} 
+                alt={user.name || 'User'} 
+                className="avatar-image" 
+                onError={handleImageError}
+                referrerPolicy="no-referrer"
+              />
+              {user.picture.includes('googleusercontent')}
+            </>
           ) : (
             <div className="avatar-fallback">
               {user.name ? getInitials(user.name) : <FiUserIcon />}
             </div>
           )}
         </div>
-        <span className="user-name" title={user.name}>
-          {user.name || 'User'}
-        </span>
+        <div className="user-info">
+          <span className="user-name" title={user.name}>
+            {user.name || 'User'}
+          </span>
+        </div>
         <FiChevronDown className={`dropdown-icon ${isOpen ? 'open' : ''}`} />
       </button>
       

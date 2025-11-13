@@ -22,6 +22,9 @@ const Login = () => {
       setError(error === 'auth_failed' 
         ? 'Authentication failed. Please try again.' 
         : 'An error occurred during login.');
+      setLoading(false);
+      // Clean up the URL
+      window.history.replaceState({}, document.title, window.location.pathname);
       return;
     }
 
@@ -30,8 +33,18 @@ const Login = () => {
         try {
           setLoading(true);
           const user = JSON.parse(decodeURIComponent(userData));
-          login({ user, token });
-          navigate('/');
+          await login({ user, token });
+          
+          // Store the token and user data
+          localStorage.setItem('token', token);
+          
+          // Clean up the URL
+          window.history.replaceState({}, document.title, window.location.pathname);
+          
+          // Redirect to home or intended path
+          const redirectTo = localStorage.getItem('redirectAfterLogin') || '/';
+          localStorage.removeItem('redirectAfterLogin');
+          navigate(redirectTo);
         } catch (err) {
           console.error('Error processing OAuth callback:', err);
           setError('Failed to process login. Please try again.');
@@ -44,28 +57,6 @@ const Login = () => {
     }
   }, [navigate, searchParams, login]);
 
-  // Check if user is already logged in
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const response = await fetch('http://localhost:3001/api/auth/me', {
-          credentials: 'include',
-        });
-        if (response.ok) {
-          const userData = await response.json();
-          if (userData.user) {
-            login({ user: userData.user });
-            navigate('/');
-          }
-        }
-      } catch (error) {
-        console.error('Auth check failed:', error);
-      }
-    };
-
-    checkAuth();
-  }, [navigate, login]);
-
   const handleGoogleLogin = () => {
     setLoading(true);
     setError('');
@@ -76,7 +67,7 @@ const Login = () => {
     <div className="login-container">
       <div className="login-box">
         <div className="login-header">
-          <h2>Welcome to Medical Summarizer</h2>
+          <h2>Welcome to MediSum</h2>
           <p>Please sign in to continue</p>
         </div>
         
