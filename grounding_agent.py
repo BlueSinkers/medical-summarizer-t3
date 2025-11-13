@@ -32,16 +32,32 @@ class ValidationResult:
 
 
 
+# No Need for RAG, just text based
+
 # SECTION 2: MAIN VALIDATION FUNCTION DEF
 # This is the core component that does all the work
 def validate_response(
     llm_response: str,                      # INPUT: The LLM's answer we're checking
     conversation_history: list[dict],       # INPUT: Full conversation so far (for context)
     medical_report: str,                    # INPUT: Original medical document (ground truth)
+    # No Need
     rag_context: Optional[str] = None,      # INPUT: Retrieved medical knowledge (secondary ground truth)
     api_key: Optional[str] = None           # INPUT: Optional API key (defaults to env var if not provided)
 )   -> ValidationResult:
     
+# LLM Response
+# Convo History
+# Summary of Medical Report
+
+# Grouding should be in claude
+
+# RAG should be in ollama, should not be hard
+
+# Create a Parsible output, have conrfidence threshold
+
+# We have uncertanty, can you recheck again in the RAG?
+
+
     
     
     client = anthropic.Anthropic(api_key=api_key)
