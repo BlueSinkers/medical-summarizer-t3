@@ -5,10 +5,8 @@ from dataclasses import dataclass
 from typing import Optional
 from enum import Enum
 
-# ============================================================================
-# CONFIGURATION & SETTINGS
-# ============================================================================
 
+# CONFIGURATION & SETTINGS
 class ValidatorMode(Enum):
     """Operating modes for grounding agent"""
     ENABLED = "enabled"           # Full validation
@@ -27,10 +25,7 @@ class GroundingConfig:
     enable_logging: bool = True        # Log validation attempts
 
 
-# ============================================================================
 # PART 1: DATA STRUCTURE
-# ============================================================================
-
 @dataclass
 class ValidationResult:
     """Result of validating an LLM response"""
@@ -44,10 +39,8 @@ class ValidationResult:
     retry_count: int = 0              # How many times validation was retried
 
 
-# ============================================================================
-# PART 2: MAIN VALIDATION FUNCTION
-# ============================================================================
 
+# PART 2: MAIN VALIDATION FUNCTION
 def validate_response(
     llm_response: str,
     conversation_history: list[dict],
@@ -70,10 +63,8 @@ def validate_response(
     if config is None:
         config = GroundingConfig()
     
-    # ========================================================================
-    # STEP 1: CHECK MODE (Can we even run?)
-    # ========================================================================
-    
+
+       # STEP 1: CHECK MODE (Can we even run?) 
     if config.mode == ValidatorMode.DISABLED:
         if config.enable_logging:
             print("[GROUNDING] Validation disabled - approving response")
@@ -96,10 +87,8 @@ def validate_response(
             print("[GROUNDING] Running in LOW_RESOURCE mode - minimal processing")
         return _low_resource_validation(llm_response, medical_report)
     
-    # ========================================================================
-    # STEP 2: INITIALIZE ANTHROPIC CLIENT
-    # ========================================================================
     
+    # STEP 2: INITIALIZE ANTHROPIC CLIENT
     try:
         client = anthropic.Anthropic(api_key=api_key)
     except Exception as e:
@@ -120,18 +109,13 @@ def validate_response(
                 reasoning="Could not connect to validation API"
             )
     
-    # ========================================================================
     # STEP 3: COMPRESS CONVERSATION HISTORY
-    # ========================================================================
-    
     conversation_str = "\n".join(
         [f"{msg['role'].upper()}: {msg['content']}" for msg in conversation_history[-5:]]
     )
     
-    # ========================================================================
-    # STEP 4: BUILD VALIDATION PROMPT
-    # ========================================================================
-    
+   
+    # STEP 4: VALIDATION PROMPT
     grounding_prompt = f"""You are a medical safety validator. Validate this LLM response for:
 1. Hallucinations (claims without support in context)
 2. Medical accuracy issues
@@ -157,12 +141,10 @@ Respond ONLY with valid JSON:
     "reasoning": "brief explanation"
 }}
 
-Be STRICT about hallucinations.
+Be very STRICT about hallucinations.
 """
     
-    # ========================================================================
-    # STEP 5: CALL CLAUDE API
-    # ========================================================================
+    # STEP 5: CALLING API
     
     try:
         response = client.messages.create(
@@ -187,9 +169,8 @@ Be STRICT about hallucinations.
                 reasoning=f"Validation API error: {str(e)}"
             )
     
-    # ========================================================================
+    
     # STEP 6: PARSE JSON
-    # ========================================================================
     
     result = _parse_validation_response(response_text)
     
@@ -414,67 +395,3 @@ Reasoning:
 """
     return report
 
-
-# ============================================================================
-# EXAMPLE USAGE
-# ============================================================================
-
-if __name__ == "__main__":
-    # Example 1: Normal validation
-    print("=" * 60)
-    print("EXAMPLE 1: Normal Validation (API enabled)")
-    print("=" * 60)
-    
-    config = GroundingConfig(
-        mode=ValidatorMode.ENABLED,
-        confidence_threshold=0.7,
-        enable_logging=True
-    )
-    
-    medical_report = "Patient: John Doe, Glucose: 105 mg/dL (normal: 70-100)"
-    conversation = [{"role": "user", "content": "What do my results show?"}]
-    llm_response = "Your glucose is slightly elevated at 105."
-    
-    result = validate_response(
-        llm_response=llm_response,
-        conversation_history=conversation,
-        medical_report=medical_report,
-        config=config
-    )
-    print(format_validation_report(result))
-    
-    # Example 2: Offline validation
-    print("\n" + "=" * 60)
-    print("EXAMPLE 2: Offline Validation (No internet)")
-    print("=" * 60)
-    
-    config_offline = GroundingConfig(
-        mode=ValidatorMode.OFFLINE,
-        enable_logging=True
-    )
-    
-    result = validate_response(
-        llm_response=llm_response,
-        conversation_history=conversation,
-        medical_report=medical_report,
-        config=config_offline
-    )
-    print(format_validation_report(result))
-    
-    # Example 3: Disabled validation
-    print("\n" + "=" * 60)
-    print("EXAMPLE 3: Validation Disabled")
-    print("=" * 60)
-    
-    config_disabled = GroundingConfig(
-        mode=ValidatorMode.DISABLED,
-        enable_logging=True
-    )
-    
-    result = validate_response(
-        llm_response=llm_response,
-        conversation_history=conversation,
-        medical_report=medical_report,
-        config=config_disabled
-    )
-    print(format_validation_report(result))
