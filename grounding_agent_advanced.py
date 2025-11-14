@@ -213,10 +213,8 @@ Be very STRICT about hallucinations.
     return result
 
 
-# ============================================================================
-# HELPER: OFFLINE VALIDATION
-# ============================================================================
 
+# HELPER: OFFLINE VALIDATION
 def _offline_validation(
     llm_response: str,
     medical_report: str,
