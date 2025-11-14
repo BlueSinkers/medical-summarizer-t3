@@ -101,9 +101,11 @@ const UserMenu = ({ user, onLogout }) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             setIsOpen(!isOpen);
+          } else if (e.key === 'Escape') {
+            setIsOpen(false);
           }
         }}
-        aria-haspopup="true"
+        aria-haspopup="menu"
         aria-expanded={isOpen}
         aria-label="User menu"
         type="button"
@@ -118,7 +120,6 @@ const UserMenu = ({ user, onLogout }) => {
                 onError={handleImageError}
                 referrerPolicy="no-referrer"
               />
-              {user.picture.includes('googleusercontent')}
             </>
           ) : (
             <div className="avatar-fallback">
@@ -134,7 +135,12 @@ const UserMenu = ({ user, onLogout }) => {
         <FiChevronDown className={`dropdown-icon ${isOpen ? 'open' : ''}`} />
       </button>
       
-      <div className={`dropdown-menu ${isOpen ? 'open' : ''}`}>
+      <div 
+        className={`dropdown-menu ${isOpen ? 'open' : ''}`}
+        role="menu"
+        aria-orientation="vertical"
+        aria-hidden={!isOpen}
+      >
         <div className="dropdown-header">
           <div className="user-avatar large">
             {user.picture ? (
@@ -144,6 +150,7 @@ const UserMenu = ({ user, onLogout }) => {
                   alt={user.name || 'User'} 
                   className="avatar-image"
                   onError={handleImageError}
+                  referrerPolicy="no-referrer"
                 />
                 <div className="avatar-fallback" style={{ display: 'none' }}>
                   {user.name ? getInitials(user.name) : <FiUserIcon />}
@@ -157,9 +164,11 @@ const UserMenu = ({ user, onLogout }) => {
           </div>
           <div className="user-details">
             <div className="user-name">{user.name || 'User'}</div>
-            <div className="user-email" title={user.email}>
-              {user.email || ''}
-            </div>
+            {user.email && (
+              <div className="user-email" title={user.email}>
+                {user.email}
+              </div>
+            )}
           </div>
         </div>
         
@@ -168,7 +177,17 @@ const UserMenu = ({ user, onLogout }) => {
         <button 
           className="dropdown-item"
           onClick={handleProfileClick}
-          aria-label="View profile"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleProfileClick(e);
+            } else if (e.key === 'Escape') {
+              setIsOpen(false);
+              e.currentTarget.closest('.user-menu-button')?.focus();
+            }
+          }}
+          role="menuitem"
+          tabIndex={isOpen ? 0 : -1}
         >
           <FiUser className="dropdown-icon" />
           <span>Profile</span>
@@ -177,8 +196,18 @@ const UserMenu = ({ user, onLogout }) => {
         <button 
           className="dropdown-item"
           onClick={handleLogout}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleLogout(e);
+            } else if (e.key === 'Escape') {
+              setIsOpen(false);
+              e.currentTarget.closest('.user-menu-button')?.focus();
+            }
+          }}
           disabled={isLoggingOut}
-          aria-label="Log out"
+          role="menuitem"
+          tabIndex={isOpen ? 0 : -1}
         >
           <FiLogOut className="dropdown-icon" />
           <span>{isLoggingOut ? 'Logging out...' : 'Log out'}</span>
