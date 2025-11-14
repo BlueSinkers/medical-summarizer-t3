@@ -1,0 +1,8 @@
+torch
+transformers
+huggingface-hub
+Pillow
+pydicom
+numpy
+langchain
+faiss-cpu  # optional, comment out if you don't need it now
