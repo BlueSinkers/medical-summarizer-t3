@@ -14,52 +14,54 @@ Notes:
 from typing import List, Union
 from PIL import Image
 import config
-from medclip import MedCLIPModel, MedCLIPProcessor
 from preprocess import resize_and_center_crop, tile_image
 import torch
 from transformers import (
     CLIPModel,
-    CLIPImageProcessor,
+    CLIPProcessor,
 )
 import numpy as np
 
-# Attempt to import a MedCLIP-specific processor/model
-try:
-    # Many community MedCLIP repos provide MedCLIPProcessor/MedCLIPModel classes
-    from medclip import MedCLIPProcessor, MedCLIPModel
-    MEDCLIP_AVAILABLE = True
-except Exception:
-    MEDCLIP_AVAILABLE = False
-
 class MedCLIPWrapper:
-    def __init__(self, device="cpu"):
+    def __init__(self, device=None):
+        if device is None:
+            device = config.DEVICE
         self.device = device
-        self.model_name = "medclip/clip-vit-base-patch16"
+        
+        # Use the model name from config
+        self.model_name = config.MODEL_NAME
+        
+        print(f"Loading MedCLIP model: {self.model_name}...")
+        try:
+            # Try to load as MedCLIP first
+            self.model = CLIPModel.from_pretrained(self.model_name).to(self.device)
+            self.processor = CLIPProcessor.from_pretrained(self.model_name)
+            print("✓ Model loaded successfully")
+        except Exception as e:
+            print(f"Error loading model: {e}")
+            # Fallback to standard CLIP if MedCLIP fails
+            fallback_model = "openai/clip-vit-base-patch16"
+            print(f"Falling back to: {fallback_model}")
+            self.model = CLIPModel.from_pretrained(fallback_model).to(self.device)
+            self.processor = CLIPProcessor.from_pretrained(fallback_model)
+        
+        self.model.eval()
 
-        print("Loading CLIP (as MedCLIP fallback)...")
-        self.model = CLIPModel.from_pretrained(self.model_name).to(self.device)
-        self.processor = CLIPImageProcessor.from_pretrained(self.model_name)
-
-    def get_image_embedding(self, image_path: str):
-        from PIL import Image
-
-        image = Image.open(image_path).convert("RGB")
-
-        inputs = self.processor(images=image, return_tensors="pt").to(self.device)
-
-        with torch.no_grad():
-            emb = self.model.get_image_features(**inputs)
-
-        emb = emb.cpu().numpy().flatten()
+    def get_image_embedding(self, image_path: str) -> List[float]:
+        """
+        Convenience method for single image path input.
+        Returns flattened embedding as list of floats.
+        """
+        pil = Image.open(image_path).convert("RGB")
+        emb = self.encode_image(pil)
         return emb.tolist()
-
 
     def _prepare_image(self, pil: Image.Image):
         """Resize to target and return processor inputs."""
         pil_inp = resize_and_center_crop(pil, config.IMAGE_SIZE)
         inputs = self.processor(images=pil_inp, return_tensors="pt")
         # move tensors to device if present
-        for k,v in inputs.items():
+        for k, v in inputs.items():
             if isinstance(v, torch.Tensor):
                 inputs[k] = v.to(self.device)
         return inputs
@@ -81,29 +83,15 @@ class MedCLIPWrapper:
         with torch.no_grad():
             for pil in tiles:
                 inputs = self._prepare_image(pil)
-                # try common methods
-                emb = None
-                if hasattr(self.model, "get_image_features"):
-                    # HF CLIP-like models implement get_image_features
-                    img_feats = self.model.get_image_features(**inputs)
-                    emb = img_feats.detach().cpu().numpy()
-                else:
-                    # fallback: model(**inputs)
-                    outputs = self.model(**inputs)
-                    if "img_embeds" in outputs:
-                        emb = outputs["img_embeds"].detach().cpu().numpy()
-                    elif "image_embeds" in outputs:
-                        emb = outputs["image_embeds"].detach().cpu().numpy()
-                    else:
-                        # attempt to find any tensor in outputs
-                        for v in outputs.values():
-                            if isinstance(v, torch.Tensor) and v.ndim == 2:
-                                emb = v.detach().cpu().numpy()
-                                break
+                # Use get_image_features for CLIP models
+                img_feats = self.model.get_image_features(**inputs)
+                emb = img_feats.detach().cpu().numpy()
+                
                 if emb is None:
                     raise RuntimeError("Unable to obtain image embedding from model outputs.")
                 emb = emb.reshape(-1)
                 emb_list.append(emb)
+        
         # aggregate
         mat = np.stack(emb_list, axis=0).astype(np.float32)
         if aggregate == "mean":
@@ -113,6 +101,7 @@ class MedCLIPWrapper:
         else:
             # simple average fallback
             agg = mat.mean(axis=0)
+        
         # L2 normalize
         norm = np.linalg.norm(agg) + 1e-12
         return (agg / norm).astype(np.float32)
@@ -122,31 +111,26 @@ class MedCLIPWrapper:
         Encode a list of texts. Returns (n_texts, dim) numpy array normalized.
         """
         inputs = self.processor(text=texts, return_tensors="pt", padding=True, truncation=True)
-        for k,v in inputs.items():
+        for k, v in inputs.items():
             if isinstance(v, torch.Tensor):
                 inputs[k] = v.to(self.device)
+        
         with torch.no_grad():
-            if hasattr(self.model, "get_text_features"):
-                t = self.model.get_text_features(**inputs)
-                arr = t.detach().cpu().numpy()
-            else:
-                out = self.model(**inputs)
-                if "text_embeds" in out:
-                    arr = out["text_embeds"].detach().cpu().numpy()
-                elif "text_features" in out:
-                    arr = out["text_features"].detach().cpu().numpy()
-                else:
-                    # scan outputs for a 2D tensor
-                    arr = None
-                    for v in out.values():
-                        if isinstance(v, torch.Tensor) and v.ndim == 2:
-                            arr = v.detach().cpu().numpy()
-                            break
-                    if arr is None:
-                        raise RuntimeError("Unable to obtain text embeddings from model outputs.")
+            text_feats = self.model.get_text_features(**inputs)
+            arr = text_feats.detach().cpu().numpy()
+        
         # normalize
         norms = np.linalg.norm(arr, axis=1, keepdims=True) + 1e-12
         return (arr / norms).astype(np.float32)
+    
+    def get_text_embedding(self, texts: Union[str, List[str]]) -> np.ndarray:
+        """
+        Convenience wrapper for encode_text.
+        Accepts single string or list of strings.
+        """
+        if isinstance(texts, str):
+            texts = [texts]
+        return self.encode_text(texts)
 
     def similarity(self, image_emb: np.ndarray, text_embs: np.ndarray) -> np.ndarray:
         """
