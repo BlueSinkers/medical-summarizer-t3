@@ -1,50 +1,108 @@
 const express = require('express');
-const bodyParser = require('body-parser');
-const { spawnSync } = require('child_process');
-const fs = require('fs');
-const app = express();
 const cors = require('cors');
+const { spawn } = require('child_process');
+const fs = require('fs');
+const ollama = require('ollama');
 
-
+const app = express();
 app.use(cors());
-app.use(express.json());
-app.use(bodyParser.json({ limit: '10mb' }));
+app.use(express.json({ limit: '20mb' }));
 
-function runPython(script, inputObj) {
-  const result = spawnSync('python3', [script], {
-    input: JSON.stringify(inputObj),
-    encoding: 'utf8',
+// ----------------------------
+// Helper: Run Python asynchronously
+// ----------------------------
+function runPythonAsync(script, inputObj) {
+  return new Promise((resolve, reject) => {
+    const py = spawn('python3', [script]);
+    let stdout = '';
+    let stderr = '';
+
+    py.stdout.on('data', (data) => { stdout += data.toString(); });
+    py.stderr.on('data', (data) => { stderr += data.toString(); });
+
+    py.on('close', (code) => {
+      if (code !== 0) return reject(new Error(stderr));
+      try {
+        resolve(JSON.parse(stdout));
+      } catch (err) {
+        reject(err);
+      }
+    });
+
+    py.stdin.write(JSON.stringify(inputObj));
+    py.stdin.end();
   });
-  if (result.error) throw result.error;
-  if (result.status !== 0) throw new Error(result.stderr);
-  return JSON.parse(result.stdout);
 }
 
-app.post('/api/ingest', function (req, res) {
+// ----------------------------
+// Ingest Endpoint
+// ----------------------------
+app.post('/api/ingest', async (req, res) => {
   try {
-    const fileId = req.body.file_id;
-    const text = req.body.text;
+    const { file_id, text } = req.body;
+
     if (!fs.existsSync('raw')) fs.mkdirSync('raw');
-    fs.writeFileSync(`raw/${fileId}.txt`, text);
-    const out = runPython('ingest_and_index.py', { file_id: fileId, text: text });
+    fs.writeFileSync(`raw/${file_id}.txt`, text);
+
+    // Call Python script to ingest & index into FAISS
+    const out = await runPythonAsync('ingest_and_index.py', { file_id, text });
     res.json(out);
   } catch (err) {
-    console.error(err);
+    console.error('Error in /api/ingest:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-app.post('/api/query', function (req, res) {
+// ----------------------------
+// Query Endpoint
+// ----------------------------
+app.post('/api/query', async (req, res) => {
   try {
     const { file_id, query } = req.body;
-    const out = runPython('query_and_generate.py', { file_id, query });
-    res.json(out);
+
+    // 1️⃣ Retrieve relevant chunks from Python/FAISS
+    const rag = await runPythonAsync('query_and_generate.py', { file_id, query });
+
+    // 2️⃣ Build prompt for Ollama
+    const prompt = `
+You are a medical assistant AI.
+
+Here are the most relevant extracted text chunks from the patient PDF:
+
+${rag.sources.map((s, i) => `Chunk ${i+1}: ${s.text}`).join("\n\n")}
+
+Task:
+- Provide a concise summary paragraph
+- List key findings as bullet points
+- Highlight any risk flags or concerns
+Do NOT fabricate information.
+
+User question: "${query}"
+`;
+
+    // 3️⃣ Call Ollama asynchronously
+    const response = await ollama.generate({
+      model: 'llama3',
+      prompt,
+      stream: false
+    });
+
+    // 4️⃣ Send back the real summary + chunks
+    res.json({
+      llm_summary: response.response,
+      retrieved_chunks: rag.sources
+    });
+
   } catch (err) {
-    console.error(err);
+    console.error('Error in /api/query:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-app.listen(3001, function () {
-  console.log('RAG backend running on port 3001');
+// ----------------------------
+// Start server
+// ----------------------------
+const PORT = 3001;
+app.listen(PORT, () => {
+  console.log(`Backend with FAISS + Ollama running on port ${PORT}`);
 });
