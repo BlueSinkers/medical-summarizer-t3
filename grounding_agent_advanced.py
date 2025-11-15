@@ -263,9 +263,7 @@ def _offline_validation(
     )
 
 
-# ============================================================================
 # HELPER: LOW-RESOURCE VALIDATION
-# ============================================================================
 
 def _low_resource_validation(
     llm_response: str,
