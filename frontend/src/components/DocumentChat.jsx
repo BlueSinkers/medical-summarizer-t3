@@ -5,7 +5,7 @@ const DocumentChat = ({ document, onClose }) => {
   const [messages, setMessages] = useState([
     { 
       id: 1, 
-      text: `Hello! I can help you with the document "${document?.originalname || 'this document'}". What would you like to know?`, 
+      text: `Hello! I can help you with the document "${document?.originalName || document?.originalname || 'this document'}". What would you like to know?`, 
       sender: 'ai',
       timestamp: new Date().toISOString()
     }
@@ -85,7 +85,7 @@ const DocumentChat = ({ document, onClose }) => {
         <div className="document-info">
           <FiFileText size={18} className="document-icon" />
           <div className="document-details">
-            <h3>{document?.originalname || 'Document'}</h3>
+            <h3>{document?.originalName || document?.originalname || 'Document'}</h3>
             <span className="document-meta">
               {document?.mimetype?.split('/')[1]?.toUpperCase() || 'FILE'}
               {document?.size && ` • ${formatFileSize(document.size)}`}

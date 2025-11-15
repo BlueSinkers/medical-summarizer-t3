@@ -22,6 +22,7 @@ import {
 } from 'react-icons/fi';
 import * as documentService from './services/documentService';
 import DocumentSearch from './pages/DocumentSearch';
+import ChatPage from './pages/ChatPage';
 import './App.css';
 import './index.css';
 
@@ -719,6 +720,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <DocumentSearch />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/chat/:documentId"
+            element={
+              <ProtectedRoute>
+                <ChatPage />
               </ProtectedRoute>
             }
           />

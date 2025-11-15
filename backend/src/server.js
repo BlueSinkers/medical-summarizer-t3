@@ -14,6 +14,7 @@ import {
 } from './controllers/documentController.js';
 import authRouter from './routes/auth.js';
 import documentRouter from './routes/documents.js';
+import chatRouter from './routes/chat.js';
 import { configurePassport, isAuthenticated } from './config/auth.js';
 import connectDB from './config/db.js';
 
@@ -51,9 +52,10 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Configure authentication
 configurePassport(app);
 
-// Auth routes
+// Auth and API routes
 app.use('/api/auth', authRouter);
 app.use('/api/documents', documentRouter);
+app.use('/api/chat', chatRouter);
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = join(process.cwd(), 'uploads');
