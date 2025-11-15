@@ -117,7 +117,7 @@ const DocumentSearch = () => {
     setSearchQuery(query);
     setActiveDoc(null); // Clear active doc when user types
     const trimmed = query.trim();
-    if (trimmed.length < 2) {
+    if (trimmed.length < 1) {
       // Below 2 chars, do not search; show all docs
       const sortedDocs = [...documents].sort((a, b) => 
         new Date(b.uploadDate || b.createdAt) - new Date(a.uploadDate || a.createdAt)
@@ -333,6 +333,30 @@ const DocumentSearch = () => {
     } finally {
       setIsGeneratingSummary(false);
       setActiveDoc(null);
+    }
+  };
+
+  // Download document as a blob and save with the correct filename
+  const handleDownloadDocument = async (doc, e) => {
+    try {
+      e?.stopPropagation();
+      const id = doc._id || doc.id;
+      if (!id) return;
+      // Backend route: GET /documents/download/:id
+      const response = await api.get(`/documents/download/${id}`, { responseType: 'blob' });
+      const blob = new Blob([response.data]);
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const filename = doc.originalName || doc.filename || `document-${id}`;
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error('Failed to download document:', err);
+      setError('Failed to download document. Please try again.');
     }
   };
 
@@ -597,6 +621,12 @@ const DocumentSearch = () => {
                   </div>
                 </div>
                 <div className="doc-actions">
+                  <button 
+                    className="btn"
+                    onClick={(e) => handleDownloadDocument(doc, e)}
+                  >
+                    Download
+                  </button>
                   <button 
                     className="btn"
                     onClick={() => handleGenerateSummary(doc)}

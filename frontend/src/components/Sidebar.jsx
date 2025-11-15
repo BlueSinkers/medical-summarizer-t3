@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { FiFileText, FiClock, FiUpload, FiHome, FiMessageSquare, FiDownload } from 'react-icons/fi';
+import { FiFileText, FiClock, FiUpload, FiHome, FiMessageSquare, FiDownload, FiFile } from 'react-icons/fi';
 import { useAuth } from '../contexts/AuthContext';
 import * as documentService from '../services/documentService';
 import './Sidebar.css';
@@ -17,7 +17,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         const docs = await documentService.getDocuments(api);
         // Sort by most recent first and take the first 5
         const sortedDocs = [...docs]
-          .sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt))
+          .sort((a, b) => new Date(b.uploadedAt || b.createdAt) - new Date(a.uploadedAt || a.createdAt))
           .slice(0, 5);
         setRecentDocs(sortedDocs);
       } catch (error) {
@@ -28,7 +28,25 @@ const Sidebar = ({ isOpen, onClose }) => {
     };
 
     fetchRecentDocuments();
-  }, []);
+  }, [api]);
+
+  const getFileIcon = (doc) => {
+    const name = doc.originalName || doc.originalname || doc.filename || '';
+    const ext = (name.split('.').pop() || '').toLowerCase();
+    if (ext === 'pdf') return { Icon: FiFile, color: '#ef4444' };
+    if (ext === 'doc' || ext === 'docx') return { Icon: FiFileText, color: '#2563eb' };
+    if (ext === 'txt' || ext === 'md') return { Icon: FiFileText, color: '#10b981' };
+    return { Icon: FiFile, color: '#6b7280' };
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes == null && bytes !== 0) return '';
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
 
   const handleDownload = async (doc, e) => {
     try {
@@ -38,7 +56,8 @@ const Sidebar = ({ isOpen, onClose }) => {
       }
       const id = doc._id || doc.id;
       if (!id) return;
-      const response = await api.get(`/documents/${id}/download`, { responseType: 'blob' });
+      // Backend route: GET /api/documents/download/:id (api instance has /api base)
+      const response = await api.get(`/documents/download/${id}`, { responseType: 'blob' });
       const blobUrl = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       const filename = doc.originalName || doc.originalname || doc.filename || `document-${id}`;
@@ -95,12 +114,12 @@ const Sidebar = ({ isOpen, onClose }) => {
               return (
                 <li key={doc._id || doc.id} className="doc-item">
                   <Link to={`/documents/${doc._id || doc.id}`} onClick={onClose}>
-                    <FiFileText size={16} />
+                    {(() => { const { Icon, color } = getFileIcon(doc); return <Icon size={16} color={color} />; })()}
                     <span className="doc-name" title={displayName}>
                       {displayName.length > 20 ? `${displayName.substring(0, 20)}...` : displayName}
                     </span>
                     <span className="doc-date">
-                      {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : ''}
+                      {doc.size != null ? formatFileSize(doc.size) : ''}
                     </span>
                   </Link>
                   <button

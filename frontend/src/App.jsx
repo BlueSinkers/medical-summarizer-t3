@@ -48,6 +48,29 @@ function MedicalSummarizer() {
       
       return () => clearTimeout(timer);
     };
+
+  // Download document as a blob and save with the correct filename
+  const handleDownloadDocument = async (doc, e) => {
+    try {
+      e?.stopPropagation();
+      const id = doc._id || doc.id;
+      if (!id) return;
+      // Backend route: GET /api/documents/download/:id
+      const response = await api.get(`/documents/download/${id}`, { responseType: 'blob' });
+      const blob = new Blob([response.data]);
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const filename = doc.originalName || doc.filename || `document-${id}`;
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error('Failed to download document:', err);
+    }
+  };
     
     if (isInitialMount.current) {
       window.scrollTo(0, 0);
@@ -608,22 +631,24 @@ function MedicalSummarizer() {
                       {doc.originalName || doc.originalname || doc.name || 'Untitled Document'}
                     </div>
                     <div className="document-meta">
-                      <span className="document-upload-time" title="Uploaded time">
-                        {doc.uploadedAt ? formatTimeAgo(doc.uploadedAt) : 'Just now'}
+                      <span className="document-size" title="File size">
+                        {doc.size != null ? formatFileSize(doc.size) : ''}
                       </span>
                     </div>
                   </div>
                 </div>
                 <div className="document-actions">
-                  <a
-                    href={`${import.meta.env.VITE_API_URL || window.location.origin}/api/documents/download/${doc.id || doc._id}`}
+                  <button
                     className="download-button"
-                    onClick={(e) => e.stopPropagation()}
-                    download
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDownloadDocument(doc, e);
+                    }}
                     title="Download document"
+                    aria-label={`Download ${doc.originalName || doc.originalname || doc.filename || 'document'}`}
                   >
                     <FiDownload size={14} />
-                  </a>
+                  </button>
                   <button
                     className="delete-button"
                     onClick={(e) => {
