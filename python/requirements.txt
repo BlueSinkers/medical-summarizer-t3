@@ -1,2 +1,15 @@
-Flask==3.1.2
-
+fastapi
+uvicorn[standard]
+langchain
+langchain-community
+pypdf
+python-multipart
+langchain-text-splitters
+sentence-transformers
+huggingface-hub
+faiss-cpu
+transformers
+accelerate
+sentencepiece
+ollama
+numpy
