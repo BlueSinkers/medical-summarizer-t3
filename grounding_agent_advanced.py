@@ -6,6 +6,12 @@ from typing import Optional
 from enum import Enum
 
 
+
+# Explore How to do RAG format for Find a solution too not input summary every single time
+# Cosine summary output?
+
+
+
 # CONFIGURATION & SETTINGS
 class ValidatorMode(Enum):
     """Operating modes for grounding agent"""
@@ -21,8 +27,8 @@ class GroundingConfig:
     mode: ValidatorMode = ValidatorMode.ENABLED
     confidence_threshold: float = 0.6  # Reject if confidence below this
     max_retries: int = 2               # Retry uncertain validations
-    allow_offline_fallback: bool = True  # Fall back to offline if API fails
-    enable_logging: bool = True        # Log validation attempts
+    
+    
 
 
 # PART 1: DATA STRUCTURE
@@ -33,9 +39,8 @@ class ValidationResult:
     confidence: float                 # 0.0-1.0 = confidence in validation decision
     issues: list[str]                 # List of problems found
     corrections: Optional[str]        # Suggested fix (or None)
-    safety_flags: list[str]          # Safety rules violated
+    safety_flags: list[str]           # Safety rules violated
     reasoning: str                    # Explanation of pass/fail
-    requires_review: bool = False     # TRUE = human should review (low confidence)
     retry_count: int = 0              # How many times validation was retried
 
 
@@ -46,7 +51,6 @@ def validate_response(
     conversation_history: list[dict],
     medical_report: str,
     config: Optional[GroundingConfig] = None,
-    api_key: Optional[str] = None
 ) -> ValidationResult:
     """
     Validates an LLM response for hallucinations, safety, and medical accuracy.
@@ -109,6 +113,8 @@ def validate_response(
                 reasoning="Could not connect to validation API"
             )
     
+
+    # I don't this is necessary
     # STEP 3: COMPRESS CONVERSATION HISTORY
     conversation_str = "\n".join(
         [f"{msg['role'].upper()}: {msg['content']}" for msg in conversation_history[-5:]]
@@ -174,9 +180,7 @@ Be very STRICT about hallucinations.
     
     result = _parse_validation_response(response_text)
     
-    # ========================================================================
-    # STEP 7: APPLY CONFIDENCE THRESHOLD
-    # ========================================================================
+    # STEP 7: APPLY CONFIDENCE THRESHOLD    
     
     if result.confidence < config.confidence_threshold:
         if config.enable_logging:
@@ -202,7 +206,6 @@ Be very STRICT about hallucinations.
                 conversation_history=conversation_history,
                 medical_report=medical_report,
                 config=retry_config,
-                api_key=api_key
             )
             retry_result.retry_count = result.retry_count + 1
             return retry_result
@@ -213,7 +216,7 @@ Be very STRICT about hallucinations.
     return result
 
 
-
+# Just checking Some keywords (might change logic)
 # HELPER: OFFLINE VALIDATION
 def _offline_validation(
     llm_response: str,
@@ -277,7 +280,7 @@ def _low_resource_validation(
     issues = []
     safety_flags = []
     
-    # Only check for CRITICAL safety issues
+    # Only check for critical safety issues
     critical_keywords = [
         ("stop taking medication", "CRITICAL_SAFETY"),
         ("ignore doctor", "CRITICAL_SAFETY"),
@@ -303,9 +306,7 @@ def _low_resource_validation(
     )
 
 
-# ============================================================================
 # HELPER: PARSE VALIDATION RESPONSE
-# ============================================================================
 
 def _parse_validation_response(response_text: str) -> ValidationResult:
     """Parse Claude's JSON response"""
@@ -342,9 +343,7 @@ def _parse_validation_response(response_text: str) -> ValidationResult:
         )
 
 
-# ============================================================================
 # SECTION 3: OUTPUT FORMATTING
-# ============================================================================
 
 def format_validation_report(result: ValidationResult) -> str:
     """Format validation result for display"""
