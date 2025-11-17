@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUser, FiLogOut, FiChevronDown, FiUser as FiUserIcon } from 'react-icons/fi';
+import { FiUser, FiLogOut, FiChevronDown, FiUser as FiUserIcon, FiInfo } from 'react-icons/fi';
 import { FcGoogle } from 'react-icons/fc';
 
 const UserMenu = ({ user, onLogout }) => {
@@ -195,6 +195,32 @@ const UserMenu = ({ user, onLogout }) => {
         
         <button 
           className="dropdown-item"
+          onClick={(e) => {
+            e.preventDefault();
+            setIsOpen(false);
+            navigate('/about');
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setIsOpen(false);
+              navigate('/about');
+            } else if (e.key === 'Escape') {
+              setIsOpen(false);
+              e.currentTarget.closest('.user-menu-button')?.focus();
+            }
+          }}
+          role="menuitem"
+          tabIndex={isOpen ? 0 : -1}
+        >
+          <FiInfo className="dropdown-icon" />
+          <span>About</span>
+        </button>
+        
+        <div className="dropdown-divider"></div>
+        
+        <button 
+          className="dropdown-item danger"
           onClick={handleLogout}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
@@ -210,7 +236,7 @@ const UserMenu = ({ user, onLogout }) => {
           tabIndex={isOpen ? 0 : -1}
         >
           <FiLogOut className="dropdown-icon" />
-          <span>{isLoggingOut ? 'Logging out...' : 'Log out'}</span>
+          <span>{isLoggingOut ? 'Logging out...' : 'Logout'}</span>
         </button>
       </div>
     </div>

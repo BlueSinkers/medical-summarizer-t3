@@ -59,19 +59,6 @@ const ChatPage = () => {
     };
   }, [api, document, documentId]);
 
-  if (isLoading || !showContent) {
-    return (
-      <div className="chat-page loading-state">
-        <div className="loading-container">
-          <div className="spinner">
-            <FiLoader className="spin" size={32} />
-          </div>
-          <p>Loading your chat...</p>
-        </div>
-      </div>
-    );
-  }
-
   const handleClose = () => {
     const returnPath = location.state?.returnPath || '/documents';
     navigate(returnPath);

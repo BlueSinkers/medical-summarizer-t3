@@ -24,6 +24,7 @@ import * as documentService from './services/documentService';
 import DocumentSearch from './pages/DocumentSearch';
 import ChatPage from './pages/ChatPage';
 import Profile from './pages/Profile';
+import About from './pages/About';
 import './App.css';
 import './index.css';
 
@@ -716,6 +717,12 @@ function App() {
       <div className="app">
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route
+            path="/about"
+            element={
+              <About />
+            }
+          />
           <Route
             path="/profile"
             element={

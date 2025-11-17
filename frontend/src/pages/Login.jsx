@@ -69,7 +69,7 @@ const Login = () => {
         <div className="login-header">
           <h2 style={{ fontSize: '3rem', fontWeight: '700', background: 'linear-gradient(90deg, var(--primary), var(--accent))', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', display: 'inline-block' }}>MediSum</h2>
           
-          <p style={{ fontSize: '1rem', fontWeight: '500', color: '#666' }}>Please sign in to continue</p>
+          {/* <p style={{ fontSize: '1rem', fontWeight: '500', color: '#666' }}>Please sign in to continue</p> */}
         </div>
         
         {error && (
@@ -89,7 +89,7 @@ const Login = () => {
           ) : (
             <>
               <FcGoogle size={20} />
-              <span>Continue with Google</span>
+              <span>Sign in/Sign up with Google</span>
             </>
           )}
         </button>
