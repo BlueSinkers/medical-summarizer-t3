@@ -292,29 +292,32 @@ p {
   position: fixed;
   top: 1.5rem;
   left: 1.5rem;
-  background: #1a1a2e;
+  z-index: 50;
+  background: #4f46e5;
   border: none;
-  border-radius: 12px;
-  width: 44px;
-  height: 44px;
+  border-radius: 50%;
+  width: 3.5rem;
+  height: 3.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1060;
   cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0.75rem;
 }
 
 .sidebar-toggle:hover {
-  background: #2d3748;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  background: #4338ca;
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
 }
 
 .sidebar-toggle svg {
   color: #fff;
   transition: transform 0.3s ease;
+  width: 2rem;
+  height: 2rem;
 }
 
 .sidebar.open + .sidebar-toggle {

@@ -23,6 +23,7 @@ import {
 import * as documentService from './services/documentService';
 import DocumentSearch from './pages/DocumentSearch';
 import ChatPage from './pages/ChatPage';
+import Profile from './pages/Profile';
 import './App.css';
 import './index.css';
 
@@ -49,7 +50,25 @@ function MedicalSummarizer() {
       
       return () => clearTimeout(timer);
     };
-
+    
+    if (isInitialMount.current) {
+      window.scrollTo(0, 0);
+      isInitialMount.current = false;
+    }
+    
+    const timer = setTimeout(scrollToTop, 0);
+    window.addEventListener('popstate', scrollToTop);
+    
+    const handleBeforeUnload = () => window.scrollTo(0, 0);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('popstate', scrollToTop);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [pathname]);
+  
   // Download document as a blob and save with the correct filename
   const handleDownloadDocument = async (doc, e) => {
     try {
@@ -72,28 +91,10 @@ function MedicalSummarizer() {
       console.error('Failed to download document:', err);
     }
   };
-    
-    if (isInitialMount.current) {
-      window.scrollTo(0, 0);
-      isInitialMount.current = false;
-    }
-    
-    const timer = setTimeout(scrollToTop, 0);
-    window.addEventListener('popstate', scrollToTop);
-    
-    const handleBeforeUnload = () => window.scrollTo(0, 0);
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener('popstate', scrollToTop);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, [pathname]);
   
   // Handle chat button click - navigate to document search/chat page
   const handleChatClick = useCallback(() => {
-    navigate('/documents');
+    navigate('/documents', { state: { resetSearch: true } });
   }, [navigate]);
   // State management
   const [file, setFile] = useState(null);
@@ -715,6 +716,14 @@ function App() {
       <div className="app">
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/documents"
             element={

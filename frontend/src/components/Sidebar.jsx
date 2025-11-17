@@ -104,7 +104,7 @@ const Sidebar = ({ isOpen, onClose }) => {
       </nav>
 
       <div className="recent-docs">
-        <h4><FiClock size={18} /> Recent Documents</h4>
+        <h4 style={{ color: '#4f46e5' }}><FiClock size={18} /> Recent Documents</h4>
         {loading ? (
           <div className="loading-docs">Loading...</div>
         ) : recentDocs.length > 0 ? (
@@ -112,24 +112,32 @@ const Sidebar = ({ isOpen, onClose }) => {
             {recentDocs.map((doc) => {
               const displayName = doc.originalName || doc.originalname || doc.filename || 'Untitled';
               return (
-                <li key={doc._id || doc.id} className="doc-item">
+                <li 
+                  key={doc._id || doc.id} 
+                  className="doc-item"
+                  data-filetype={(doc.originalName || doc.originalname || doc.filename || '').split('.').pop().toLowerCase()}
+                  style={{ display: 'flex', alignItems: 'center', padding: '0.5rem 1rem', gap: '1rem' }}
+                >
                   <Link to={`/documents/${doc._id || doc.id}`} onClick={onClose}>
-                    {(() => { const { Icon, color } = getFileIcon(doc); return <Icon size={16} color={color} />; })()}
-                    <span className="doc-name" title={displayName}>
-                      {displayName.length > 20 ? `${displayName.substring(0, 20)}...` : displayName}
-                    </span>
-                    <span className="doc-date">
-                      {doc.size != null ? formatFileSize(doc.size) : ''}
+                    {(() => { 
+                      const { Icon, color } = getFileIcon(doc); 
+                      return <Icon size={16} color={color} style={{ marginRight: '0.5rem' }} />; 
+                    })()}
+                    <span className="doc-name" title={displayName} style={{ fontWeight: '500', color: '#2d3748' }}>
+                      {displayName.length > 25 ? `${displayName.substring(0, 22)}...` : displayName}
                     </span>
                   </Link>
+                  <span className="doc-date" style={{ fontSize: '0.8rem', color: '#718096' }}>
+                    {doc.size != null ? formatFileSize(doc.size) : ''}
+                  </span>
                   <button
                     className="download-btn"
                     title="Download"
                     aria-label={`Download ${displayName}`}
                     onClick={(e) => handleDownload(doc, e)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 6px' }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 0.5rem' }}
                   >
-                    <FiDownload size={16} />
+                    <FiDownload size={16} color="#4f46e5" />
                   </button>
                 </li>
               );

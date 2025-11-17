@@ -86,60 +86,101 @@
 }
 
 .recent-docs {
-  padding: 1rem 1.5rem;
+  padding: 1.25rem 1.5rem;
   border-top: 1px solid #e9ecef;
-  background-color: #fff;
+  background-color: #f8f9ff;
   position: sticky;
   bottom: 0;
-  box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.03);
 }
 
 .recent-docs h4 {
   display: flex;
   align-items: center;
-  font-size: 0.9rem;
-  color: #6c757d;
-  margin: 0 0 1rem 0;
+  font-size: 0.9375rem;
+  color: #4b5563;
+  margin: 0 0 1.25rem 0;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px dashed #e5e7eb;
 }
 
 .recent-docs h4 svg {
-  margin-right: 0.5rem;
-  color: #6c757d;
+  margin-right: 0.75rem;
+  color: #4f46e5;
+  width: 18px;
+  height: 18px;
 }
 
 .doc-list {
   list-style: none;
-  padding: 0;
+  padding: 0.25rem 0.25rem 0.25rem 0;
   margin: 0;
-  max-height: 300px;
+  max-height: 350px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db #f1f1f1;
+  padding-right: 0.5rem;
+}
+
+/* Custom scrollbar for WebKit browsers */
+.doc-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.doc-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.doc-list::-webkit-scrollbar-thumb {
+  background: #c7d2fe;
+  border-radius: 3px;
+}
+
+.doc-list::-webkit-scrollbar-thumb:hover {
+  background: #a5b4fc;
 }
 
 .doc-item {
   margin-bottom: 0.5rem;
-  border-radius: 4px;
+  border-radius: 8px;
   overflow: hidden;
-  transition: background-color 0.2s;
+  transition: all 0.2s ease;
+  border: 1px solid #e9ecef;
+  background: white;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
 .doc-item:hover {
-  background-color: #f1f3f5;
+  background-color: #f8f9ff;
+  border-color: #d0d7ff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.1);
 }
 
 .doc-item a {
   display: flex;
   align-items: center;
-  padding: 0.5rem 0.75rem;
-  color: #495057;
+  padding: 0.75rem 1rem;
+  color: #2d3748;
   text-decoration: none;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
+  position: relative;
+  z-index: 1;
 }
 
 .doc-item svg {
-  margin-right: 0.5rem;
-  color: #6c757d;
+  margin-right: 0.75rem;
   flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  padding: 3px;
+  background: #f0f4ff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .doc-name {
@@ -147,13 +188,58 @@
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 1;
-  margin-right: 0.5rem;
+  margin-right: 0.75rem;
+  font-weight: 500;
+  color: #2d3748;
+  font-size: 0.9375rem;
+  letter-spacing: -0.01em;
 }
 
 .doc-date {
-  font-size: 0.75rem;
-  color: #6c757d;
+  font-size: 0.8125rem;
+  color: #4a5568;
   white-space: nowrap;
+  background: #f8f9fa;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 500;
+  margin-right: 0.75rem;
+  border: 1px solid #e9ecef;
+}
+
+.download-btn {
+  opacity: 0.7;
+  transition: all 0.2s ease;
+  padding: 0.25rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.download-btn:hover {
+  opacity: 1;
+  background: #f0f4ff;
+  color: #4f46e5;
+  transform: translateY(-1px);
+}
+
+/* File type specific colors */
+.doc-item[data-filetype="pdf"] svg {
+  color: #ef4444;
+  background-color: #fef2f2;
+}
+
+.doc-item[data-filetype="doc"],
+.doc-item[data-filetype="docx"] svg {
+  color: #2563eb;
+  background-color: #eff6ff;
+}
+
+.doc-item[data-filetype="txt"],
+.doc-item[data-filetype="md"] svg {
+  color: #10b981;
+  background-color: #ecfdf5;
 }
 
 .loading-docs,

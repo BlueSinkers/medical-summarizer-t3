@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   FiSearch, 
   FiArrowLeft, 
@@ -26,10 +26,11 @@ const DocumentSearch = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState(null);
   const [activeDoc, setActiveDoc] = useState(null);
-  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [isStartingChat, setIsStartingChat] = useState(false);
   const [hasInitialLoad, setHasInitialLoad] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const shouldReset = !!(location.state && location.state.resetSearch);
   const { api } = useAuth();
 
   // Build a case-insensitive regex from user query.
@@ -226,6 +227,22 @@ const DocumentSearch = () => {
         
         setDocuments(sortedDocs);
         
+        // If coming from "Chat with AI" with resetSearch, clear prior state and show all
+        if (shouldReset) {
+          try {
+            sessionStorage.removeItem('documentSearchState');
+          } catch {}
+          try {
+            localStorage.removeItem('lastViewedDocument');
+          } catch {}
+          setSearchQuery('');
+          setActiveDoc(null);
+          setFilteredDocs(sortedDocs);
+          // Clear the flag from history state so refresh/back doesn't keep resetting
+          navigate('/documents', { replace: true, state: {} });
+          return;
+        }
+        
         // Check if we have a document in localStorage from chat navigation
         const lastViewedDoc = localStorage.getItem('lastViewedDocument');
         if (lastViewedDoc) {
@@ -280,6 +297,14 @@ const DocumentSearch = () => {
     };
   }, [api, performSearch, searchQuery, hasInitialLoad]);
 
+  useEffect(() => {
+    return () => {
+      // Reset loading states when component unmounts
+      setIsStartingChat(false);
+      setActiveDoc(null);
+    };
+  }, []);
+
   const handleBack = () => {
     navigate('/');
   };
@@ -287,12 +312,16 @@ const DocumentSearch = () => {
   const handleChatWithDoc = useCallback(async (doc) => {
     try {
       setIsStartingChat(true);
+      setActiveDoc(doc);
       
       // Save current state before navigation
       saveSearchState();
       
       // Store the document in localStorage for cross-tab persistence
       localStorage.setItem('lastViewedDocument', JSON.stringify(doc));
+      
+      // Wait for 1 second to show loading state
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Navigate to chat with document ID
       navigate(`/chat/${doc._id || doc.id}`, { 
@@ -307,34 +336,10 @@ const DocumentSearch = () => {
       console.error('Error starting chat:', err);
       setError('Failed to start chat. Please try again.');
     } finally {
-      setIsStartingChat(false);
+      // Don't reset isStartingChat here to prevent UI flicker during navigation
+      // It will be reset when the component unmounts or when the chat is loaded
     }
   }, [navigate, documents, saveSearchState]);
-
-  const handleGenerateSummary = async (doc) => {
-    try {
-      setIsGeneratingSummary(true);
-      setActiveDoc(doc.id);
-      
-      // Here you would call your backend API to generate a summary
-      // For now, we'll simulate this with a timeout
-      const response = await api.post(`/documents/${doc.id}/summarize`);
-      
-      // Show the summary in a modal or dedicated view
-      navigate(`/documents/${doc.id}/summary`, { 
-        state: { 
-          document: doc,
-          summary: response.data.summary 
-        } 
-      });
-    } catch (error) {
-      console.error('Error generating summary:', error);
-      setError('Failed to generate summary. Please try again.');
-    } finally {
-      setIsGeneratingSummary(false);
-      setActiveDoc(null);
-    }
-  };
 
   // Download document as a blob and save with the correct filename
   const handleDownloadDocument = async (doc, e) => {
@@ -385,29 +390,29 @@ const DocumentSearch = () => {
   };
 
   // Show loading state only on initial load
-  if (isLoading && !hasInitialLoad) {
-    return (
-      <div className="loading-container">
-        <FiLoader className="spinner" style={{
-          animation: 'spin 1s linear infinite',
-          fontSize: '3rem',
-          marginBottom: '1rem',
-          color: '#4f46e5'
-        }} />
-        <h2 style={{
-          fontSize: '1.5rem',
-          fontWeight: '600',
-          color: '#1f2937',
-          marginBottom: '0.5rem'
-        }}>Loading Documents</h2>
-        <p style={{
-          color: '#6b7280',
-          maxWidth: '400px',
-          lineHeight: '1.5'
-        }}>Please wait while we load your documents. This may take a moment...</p>
-      </div>
-    );
-  }
+  // if (isLoading && !hasInitialLoad) {
+  //   return (
+  //     <div className="loading-container">
+  //       <FiLoader className="spinner" style={{
+  //         animation: 'spin 1s linear infinite',
+  //         fontSize: '3rem',
+  //         marginBottom: '1rem',
+  //         color: '#4f46e5'
+  //       }} />
+  //       <h2 style={{
+  //         fontSize: '1.5rem',
+  //         fontWeight: '600',
+  //         color: '#1f2937',
+  //         marginBottom: '0.5rem'
+  //       }}>Loading Documents</h2>
+  //       <p style={{
+  //         color: '#6b7280',
+  //         maxWidth: '400px',
+  //         lineHeight: '1.5'
+  //       }}>Please wait while we load your documents. This may take a moment...</p>
+  //     </div>
+  //   );
+  // }
 
   if (error) {
     return (
@@ -628,18 +633,16 @@ const DocumentSearch = () => {
                     Download
                   </button>
                   <button 
-                    className="btn"
-                    onClick={() => handleGenerateSummary(doc)}
-                    disabled={isGeneratingSummary}
-                  >
-                    {isGeneratingSummary && activeDoc?.id === doc.id ? 'Generating...' : 'Summary'}
-                  </button>
-                  <button 
                     className="btn primary"
                     onClick={() => handleChatWithDoc(doc)}
                     disabled={isStartingChat}
                   >
-                    {isStartingChat && activeDoc?.id === doc.id ? 'Opening...' : 'Chat'}
+                    {isStartingChat && activeDoc?.id === (doc.id || doc._id) ? (
+                      <>
+                        <FiLoader className="spin" style={{ marginRight: '6px' }} />
+                        Opening...
+                      </>
+                    ) : 'Chat'}
                   </button>
                 </div>
               </div>
