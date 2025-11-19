@@ -167,7 +167,6 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, []);
 
-  // In AuthContext.jsx, uncomment and update the login function:
   const login = useCallback(async (email, password) => {
     try {
       const response = await api.post('/auth/login', { email, password });
@@ -181,9 +180,8 @@ export const AuthProvider = ({ children }) => {
       setUser(user);
       setError(null);
       
-      // Redirect to intended page or home
-      const redirectTo = location.state?.from?.pathname || '/';
-      navigate(redirectTo, { replace: true });
+      // Always redirect to home page after login
+      navigate('/', { replace: true });
       
       return { success: true };
     } catch (error) {

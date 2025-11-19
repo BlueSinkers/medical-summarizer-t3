@@ -41,9 +41,8 @@ const Login = () => {
     try {
       const result = await login(email, password);
       if (result.success) {
-        // Check if we need to redirect after login
-        const from = location.state?.from?.pathname || '/';
-        navigate(from, { replace: true });
+        // Always redirect to home page after successful login
+        navigate('/', { replace: true });
       } else {
         setError(result.message || 'Login failed. Please check your credentials.');
       }
