@@ -14,8 +14,10 @@ import {
 } from './controllers/documentController.js';
 import authRouter from './routes/auth.js';
 import documentRouter from './routes/documents.js';
-import { configurePassport, isAuthenticated } from './config/auth.js';
+import { configurePassport, isAuthenticated, checkSession, SESSION_TIMEOUT } from './config/auth.js';
 import connectDB from './config/db.js';
+import session from 'express-session';
+import MongoStore from 'connect-mongo';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -44,12 +46,76 @@ app.use(cors({
   credentials: true
 }));
 
+// Session configuration
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-session-secret',
+  resave: false,
+  saveUninitialized: false,
+  store: MongoStore.create({
+    mongoUrl: process.env.MONGO_URI || 'mongodb://localhost:27017/medical-summarizer',
+    ttl: SESSION_TIMEOUT / 1000, // Convert to seconds
+    autoRemove: 'interval',
+    autoRemoveInterval: 10 // Check for expired sessions every 10 minutes
+  }),
+  cookie: {
+    maxAge: SESSION_TIMEOUT,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax'
+  }
+}));
+
+// Initialize session and update last activity time
+app.use((req, res, next) => {
+  if (!req.session.lastActivity) {
+    req.session.lastActivity = Date.now();
+  }
+  next();
+});
+
+// Check session for all API routes
+app.use('/api', (req, res, next) => {
+  // Skip session check for auth routes
+  if (req.path.startsWith('/auth/')) {
+    return next();
+  }
+  checkSession(req, res, next);
+});
+
 // Body parsing middleware (except for multipart/form-data)
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Configure authentication
 configurePassport(app);
+
+// Session check endpoint
+app.get('/api/session/check', (req, res) => {
+  if (!req.session.lastActivity) {
+    return res.status(401).json({ valid: false, message: 'No active session' });
+  }
+  
+  const timeSinceLastActivity = Date.now() - req.session.lastActivity;
+  const timeRemaining = SESSION_TIMEOUT - timeSinceLastActivity;
+  
+  if (timeSinceLastActivity > SESSION_TIMEOUT) {
+    req.session.destroy();
+    return res.status(401).json({ 
+      valid: false, 
+      message: 'Session expired due to inactivity',
+      sessionExpired: true
+    });
+  }
+  
+  // Update last activity time
+  req.session.lastActivity = Date.now();
+  
+  res.json({
+    valid: true,
+    timeRemaining,
+    expiresIn: Math.floor(timeRemaining / 1000) // Convert to seconds
+  });
+});
 
 // Auth and API routes
 app.use('/api/auth', authRouter);

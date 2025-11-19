@@ -9,8 +9,7 @@ const About = () => {
     { name: 'Node.js', description: 'JavaScript runtime for server-side logic', icon: <FiCpu className="tech-icon" /> },
     { name: 'MongoDB', description: 'NoSQL database for storing documents and user data', icon: <FiDatabase className="tech-icon" /> },
     { name: 'Express', description: 'Web application framework for Node.js', icon: <FiCode className="tech-icon" /> },
-    { name: 'TensorFlow.js', description: 'Machine learning for document analysis', icon: <FiCpu className="tech-icon" /> },
-    { name: 'JWT', description: 'Secure user authentication', icon: <FiShield className="tech-icon" /> },
+    { name: 'LangChain', description: 'Document analysis and RAG framework', icon: <FiCpu className="tech-icon" /> }
   ];
 
   const features = [
@@ -35,7 +34,7 @@ const About = () => {
     <div className="page-container">
       <div className="about-container">
         <Link to="/" className="back-button">
-          <FiArrowLeft size={20} /> Back to Home
+          <FiArrowLeft size={20} />
         </Link>
         
         <header className="about-header">

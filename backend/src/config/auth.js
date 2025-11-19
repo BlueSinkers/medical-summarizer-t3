@@ -6,10 +6,34 @@ import MongoStore from 'connect-mongo';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 
+export const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes in milliseconds
+const WARNING_BEFORE_TIMEOUT = 5 * 60 * 1000; // 5 minutes before timeout to show warning
+
 // Configure Passport with JWT strategy
 const jwtOptions = {
   jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
   secretOrKey: process.env.JWT_SECRET || 'your-jwt-secret'
+};
+
+// Session check middleware
+export const checkSession = (req, res, next) => {
+  if (!req.session.lastActivity) {
+    return res.status(401).json({ message: 'Session expired. Please log in again.' });
+  }
+  
+  const timeSinceLastActivity = Date.now() - req.session.lastActivity;
+  
+  if (timeSinceLastActivity > SESSION_TIMEOUT) {
+    req.session.destroy();
+    return res.status(401).json({ 
+      message: 'Session expired due to inactivity. Please log in again.',
+      sessionExpired: true
+    });
+  }
+  
+  // Update last activity time
+  req.session.lastActivity = Date.now();
+  next();
 };
 
 // JWT Strategy for protected routes

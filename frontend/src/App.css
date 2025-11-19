@@ -1,4 +1,5 @@
 @import '../node_modules/bootstrap/dist/css/bootstrap.min.css';
+
 /* Theme Variables */
 :root {
   /* Light Theme (default) */
@@ -17,11 +18,6 @@
   --header-bg: rgba(255, 255, 255, 0.8);
   --dropdown-bg: #ffffff;
   --dropdown-hover: #f9fafb;
-  
-  /* Theme Toggle */
-  --theme-toggle-bg: #f3f4f6;
-  --theme-toggle-hover: #e5e7eb;
-  --theme-toggle-icon: #4b5563;
 }
 
 [data-theme="dark"] {
@@ -40,11 +36,6 @@
   --header-bg: rgba(17, 24, 39, 0.9);
   --dropdown-bg: #1f2937;
   --dropdown-hover: #374151;
-  
-  /* Theme Toggle */
-  --theme-toggle-bg: #374151;
-  --theme-toggle-hover: #4b5563;
-  --theme-toggle-icon: #f9fafb;
 }
 
 /* Base Styles */
@@ -69,14 +60,10 @@
 }
 
 body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: var(--bg-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   color: var(--text-primary);
+  line-height: 1.5;
+  background-color: var(--bg-primary);
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
@@ -3534,19 +3521,38 @@ body {
   position: relative;
 }
 
-.back-button {
+.about-container .back-button {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  color: #4f46e5;
-  text-decoration: none;
+  background: var(--primary-color);
+  color: white;
+  border: 1px solid var(--primary-color);
+  font-size: 0.95rem;
   font-weight: 500;
+  cursor: pointer;
+  padding: 0.5rem 1rem 0.5rem 0.75rem;
+  border-radius: 6px;
+  transition: all 0.2s ease;
   margin-bottom: 1.5rem;
-  transition: color 0.2s ease;
+  text-decoration: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.back-button:hover {
-  color: #4338ca;
+.about-container .back-button:hover {
+  background: #4338ca;
+  border-color: #4338ca;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.about-container .back-button:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.about-container .back-button svg {
+  font-weight: bold;
 }
 
 .about-header {

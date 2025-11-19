@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 
 const AuthContext = createContext();
@@ -13,21 +13,68 @@ const api = axios.create({
   },
 });
 
+// Add response interceptor to handle 401 responses
+api.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.response?.status === 401) {
+      // Clear user data on 401
+      localStorage.removeItem('token');
+      delete api.defaults.headers.common['Authorization'];
+      
+      // Only redirect if not already on login page
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
 
-  // Set up axios interceptor for auth
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  // Check if user is authenticated
+  const checkAuth = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setLoading(false);
+        return null;
+      }
+
+      const response = await api.get('/auth/me');
+      setUser(response.data.user);
+      return response.data.user;
+    } catch (error) {
+      console.error('Auth check failed:', error);
+      localStorage.removeItem('token');
+      setUser(null);
+      return null;
+    } finally {
+      setLoading(false);
     }
   }, []);
 
+  // Initialize auth state on mount
+  useEffect(() => {
+    const initAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        await checkAuth();
+      } else {
+        setLoading(false);
+      }
+    };
+    initAuth();
+  }, [checkAuth]);
+
+  
   // Handle OAuth callback
   useEffect(() => {
     const token = searchParams.get('token');
@@ -120,41 +167,33 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, []);
 
-  const login = useCallback(async (credentials) => {
+  // In AuthContext.jsx, uncomment and update the login function:
+  const login = useCallback(async (email, password) => {
     try {
-      setLoading(true);
-      const response = await api.post('/auth/login', credentials);
+      const response = await api.post('/auth/login', { email, password });
+      const { user, token } = response.data;
       
-      if (response.data.token) {
-        const userData = response.data.user || response.data;
-        setUser({
-          name: userData.name,
-          email: userData.email,
-          picture: userData.picture,
-          id: userData.id || userData._id,
-          isVerified: userData.isVerified
-        });
-        
-        localStorage.setItem('token', response.data.token);
-        api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
-        
-        const redirectTo = localStorage.getItem('redirectAfterLogin') || '/';
-        localStorage.removeItem('redirectAfterLogin');
-        navigate(redirectTo);
-        
-        return { success: true };
-      }
+      // Store token and update auth headers
+      localStorage.setItem('token', token);
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      
+      // Update user state
+      setUser(user);
+      setError(null);
+      
+      // Redirect to intended page or home
+      const redirectTo = location.state?.from?.pathname || '/';
+      navigate(redirectTo, { replace: true });
+      
+      return { success: true };
     } catch (error) {
       console.error('Login failed:', error);
-      return { 
-        success: false, 
-        error: error.response?.data?.message || 'Login failed. Please check your credentials.'
-      };
-    } finally {
-      setLoading(false);
+      const message = error.response?.data?.message || 'Login failed. Please check your credentials.';
+      setError(message);
+      return { success: false, message };
     }
-  }, [navigate]);
-
+  }, [navigate, location.state?.from?.pathname]); 
+  
   const register = useCallback(async (userData) => {
     try {
       setLoading(true);
@@ -241,8 +280,8 @@ export const AuthProvider = ({ children }) => {
     register,
     loginWithGoogle,
     logout,
-    isAuthenticated: !!user,
-    api, // Export the configured axios instance
+    checkAuth,
+    isAuthenticated: !!user
   };
 
   return (

@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Login from './pages/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import UserMenu from './components/UserMenu';
+
 import { 
   FiUpload, 
   FiFile, 
@@ -462,10 +463,17 @@ function MedicalSummarizer() {
               >
                 <FiMenu className="menu-icon" />
               </button>
-              <Link to="/" className="logo">
-                <FiActivity className="logo-icon" />
-                <h1>MediSum</h1>
-              </Link>
+              <div className="logo">
+                <Link to="/" className="logo-link">
+                  <FiActivity className="logo-icon" />
+                  <h1>MediSum</h1>
+                </Link>
+              </div>
+              
+              <div className="header-actions">
+                
+                {user && <UserMenu user={user} onLogout={logout} />}
+              </div>
             </div>
             <nav className="nav-links">
               {user ? (
@@ -474,7 +482,6 @@ function MedicalSummarizer() {
                     <FiMessageSquare />
                     <span>Chat with AI</span>
                   </button>
-                  <UserMenu user={user} onLogout={logout} />
                 </>
               ) : (
                 <button 
@@ -714,50 +721,51 @@ function MedicalSummarizer() {
 function App() {
   return (
     <AuthProvider>
-      <div className="app">
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route
-            path="/about"
-            element={
-              <About />
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <Profile />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/documents"
-            element={
-              <ProtectedRoute>
-                <DocumentSearch />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/chat/:documentId"
-            element={
-              <ProtectedRoute>
-                <ChatPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/*"
-            element={
-              <ProtectedRoute>
-                <MedicalSummarizer />
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
-      </div>
+    <div className="app">
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route
+          path="/about"
+          element={
+            <About />
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/documents"
+          element={
+            <ProtectedRoute>
+              <DocumentSearch />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/chat/:documentId"
+          element={
+            <ProtectedRoute>
+              <ChatPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/*"
+          element={
+            <ProtectedRoute>
+              <MedicalSummarizer />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </div>
     </AuthProvider>
+  
   );
 }
 
