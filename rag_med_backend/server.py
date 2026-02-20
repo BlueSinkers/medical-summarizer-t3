@@ -1,6 +1,13 @@
+# ensure sentences aren't cut off mid-way
+# add context to chunking, keyword-based retrieval, reranker
+
 # main.py
 import os, json, re, asyncio
-from typing import Optional
+from dotenv import load_dotenv
+
+load_dotenv()
+
+from typing import Optional, List
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -8,10 +15,11 @@ from pydantic import BaseModel
 from kb_loader import load_kb_docs
 from retriever import (
     build_or_load_index, format_docs,
-    try_load_vectorstore, make_retriever,  # available if needed
+    make_retriever,  # available if needed
 )
 from summarizer_chain import make_summarizer_chain
 from chat_chain import make_chat_chain
+from translation import translate_texts
 
 INDEX_DIR = os.getenv("FAISS_INDEX_DIR", "faiss_index")
 KB_GLOB = os.getenv("KB_GLOB", "kb/*")
@@ -19,6 +27,8 @@ EMBED_MODEL = os.getenv("EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "800"))
 CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "120"))
 TOP_K = int(os.getenv("TOP_K", "8"))
+
+LAST_REPORT_TEXT: Optional[str] = None   # <--- add this
 
 # ----- API -----
 app = FastAPI(title="Medical RAG Backend", version="1.3.0")
@@ -41,7 +51,18 @@ class SummarizeReq(BaseModel):
 
 class ChatReq(BaseModel):
     question: str
+    report: Optional[str] = None   # report can be omitted in the JSON
+    use_kb: bool = True
 
+class TranslateItem(BaseModel):
+    id: str       # e.g., "report", "summary"
+    text: str
+
+
+class TranslateReq(BaseModel):
+    items: List[TranslateItem]
+    target_lang: str             # e.g., "es" or "spa_Latn"
+    source_lang: str = "en"      # default English
 
 # -------------------------
 # Text normalization helpers
@@ -87,7 +108,6 @@ def normalize_report_text(text: str) -> str:
 
     return s.strip()
 
-
 def pretty_quote_for_display(q: str) -> str:
     """
     Display-only prettifier for evidence quotes. Keeps JSON intact elsewhere.
@@ -103,7 +123,6 @@ def pretty_quote_for_display(q: str) -> str:
     # Collapse spaces again after tweaks
     p = re.sub(r'[ \t\f\v]+', ' ', p).strip()
     return p
-
 
 # -------------------------
 # RISKS handling
@@ -212,32 +231,138 @@ async def summarize(req: SummarizeReq):
             "meta": READY_META,
         }
 
-    # Normalize the incoming report for better readability downstream.
     normalized_report = normalize_report_text(req.report)
+
+    # Remember this report for the chatbot
+    global LAST_REPORT_TEXT
+    LAST_REPORT_TEXT = normalized_report
 
     chain = make_summarizer_chain(
         retriever=RETRIEVER if (req.use_kb and RETRIEVER) else None,
         format_docs_fn=format_docs
     )
-    raw_text = chain.invoke(normalized_report)
+    try:
+        raw_text = chain.invoke({"report": normalized_report})
+    except Exception as e:
+        # Check for common LLM connection issues (Ollama not running)
+        msg = str(e)
+        if "Connection refused" in msg or "Max retries exceeded" in msg:
+            from fastapi import HTTPException
+            raise HTTPException(
+                status_code=503, 
+                detail="Ollama service is not available. Please ensure Ollama is running on port 11434."
+            )
+        raise e
 
-    risks = _extract_risks_json(raw_text)
-    cleaned_text = _strip_risks_section(raw_text)
-    risk_notes = humanize_risks(risks)
+    # risks = _extract_risks_json(raw_text)
+    # cleaned_text = _strip_risks_section(raw_text)
+    # risk_notes = humanize_risks(risks)
 
     return {
-        "text": cleaned_text,   # SUMMARY + KEY FINDINGS only
-        "risks": risks,         # structured JSON (kept for validation/analytics)
-        "risk_notes": risk_notes,  # human-readable bullet list (pretty quotes)
+        "text": raw_text,  # Return the full output without risk extraction
+        "risks": None,
+        "risk_notes": None,
         "ready": True
     }
-
 
 @app.post("/chat")
 async def chat(req: ChatReq):
     if not READY_EVENT.is_set() or not RETRIEVER:
-        return {"text": "KB index is building or unavailable.", "ready": False, "meta": READY_META}
+        return {
+            "text": "KB index is building or unavailable.",
+            "ready": False,
+            "meta": READY_META,
+        }
 
-    chain = make_chat_chain(retriever=RETRIEVER, format_docs_fn=format_docs)
-    answer = chain.invoke(req.question.strip())
-    return {"text": answer, "ready": True}
+    global LAST_REPORT_TEXT
+
+    # Decide which report to use:
+    if req.report and req.report.strip():
+        normalized_report = normalize_report_text(req.report)
+    elif LAST_REPORT_TEXT:
+        # Reuse the last report from /summarize
+        normalized_report = LAST_REPORT_TEXT
+    else:
+        # No report in this request AND nothing cached
+        return {
+            "text": (
+                "No patient report is available. "
+                "Please either include the report text in this /chat request, "
+                "or call /summarize with the report first."
+            ),
+            "ready": False,
+        }
+
+    chain = make_chat_chain(
+        retriever=RETRIEVER if (req.use_kb and RETRIEVER) else None,
+        format_docs_fn=format_docs,
+    )
+
+    try:
+        answer = chain.invoke({
+            "question": req.question.strip(),
+            "report": normalized_report,
+        })
+    except Exception as e:
+        msg = str(e)
+        if "Connection refused" in msg or "Max retries exceeded" in msg:
+            from fastapi import HTTPException
+            raise HTTPException(
+                status_code=503, 
+                detail="Ollama service is not available. Please ensure Ollama is running on port 11434."
+            )
+        raise e
+
+    return {
+        "text": answer,
+        "ready": True,
+    }
+
+@app.post("/translate")
+async def translate(req: TranslateReq):
+    """
+    Translate one or more text blocks (e.g., report + summary) into a target language.
+
+    - `items`: list of {id, text}, e.g.:
+        [{"id": "report", "text": "..."},
+         {"id": "summary", "text": "..."}]
+    - `source_lang`: "en" by default
+    - `target_lang`: e.g. "es", "fr", "de", or NLLB code like "spa_Latn"
+    """
+    if not req.items:
+        return {
+            "translations": [],
+            "error": "No items provided.",
+        }
+
+    texts = [item.text for item in req.items]
+
+    try:
+        translated = translate_texts(
+            texts,
+            source_lang=req.source_lang,
+            target_lang=req.target_lang,
+        )
+    except Exception as e:
+        # Surface a simple error for now
+        return {
+            "translations": [],
+            "error": str(e),
+        }
+
+    # Reattach IDs so the frontend knows which is which
+    results = []
+    for item, out_text in zip(req.items, translated):
+        results.append({
+            "id": item.id,
+            "original": item.text,
+            "translated": out_text,
+        })
+
+    return {
+        "translations": results,
+        "source_lang": req.source_lang,
+        "target_lang": req.target_lang,
+    }
+
+

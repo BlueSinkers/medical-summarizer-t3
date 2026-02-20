@@ -10,3 +10,4 @@ langchain-text-splitters
 sentence-transformers
 faiss-cpu
 torch
+transformers

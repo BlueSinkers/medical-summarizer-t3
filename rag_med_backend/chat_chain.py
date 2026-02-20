@@ -4,46 +4,69 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_community.chat_models import ChatOllama
 from langchain_core.runnables import RunnableLambda
 
+# ensure history of chat is preserved in context window
+
 CHAT_SYSTEM = (
     "You are a careful clinical information assistant. "
-    "Answer questions using ONLY the retrieved KB context. "
-    "If the answer is not in KB, say 'Not enough information in the KB.' "
-    "Avoid medical advice; provide neutral, informational answers for laypeople."
+    "The PATIENT REPORT is your primary source; use KB CONTEXT only for general background. "
+    "Never contradict the report. "
+    "Avoid giving medical advice; explain report contents in clear, neutral language for laypeople."
 )
 
-CHAT_HUMAN = """Question:
-{question}
+CHAT_HUMAN = """
+PATIENT REPORT:
+{report}
 
 KB CONTEXT:
 {kb}
 
-Answer with short paragraphs and cite sources like [KB:<id>] when relevant."""
+QUESTION:
+{question}
 
-def make_chat_chain(retriever, format_docs_fn):
-    llm = ChatOllama(model=os.getenv("OLLAMA_MODEL", "llama3.2"), temperature=0.0)
+Instructions:
+- Cite the report with [REPORT] when you quote or rely on it.
+- Cite KB sources like [KB:<id>] when you use KB context.
+- If the report lacks sufficient detail, state this explicitly.
+"""
+
+def make_chat_chain(retriever=None, format_docs_fn=None):
+    llm = ChatOllama(
+        model=os.getenv("OLLAMA_MODEL", "llama3.2"),
+        temperature=0.0,
+    )
+
     prompt = ChatPromptTemplate.from_messages([
         ("system", CHAT_SYSTEM),
         ("human", CHAT_HUMAN),
     ])
 
-    def retrieve_kb(q: str):
+    def retrieve_kb(inputs: dict) -> str:
+        """
+        inputs: {"question": str, "report": str | None}
+        We use the QUESTION as the retrieval query.
+        """
         if retriever is None or format_docs_fn is None:
             return "[KB:empty]\n(No relevant knowledge found.)"
-        try:
-            docs = retriever.invoke(q)
-        except AttributeError:
-            docs = retriever.get_relevant_documents(q)
+
+        question = (inputs.get("question") or "").strip()
+        if not question:
+            return "[KB:empty]\n(No relevant knowledge found.)"
+
+        docs = retriever.invoke(question)
         return format_docs_fn(docs)
 
-    identity = RunnableLambda(lambda x: x)
+    kb_runnable = RunnableLambda(retrieve_kb)
 
+    # Input to the chain will be a dict: {"question": ..., "report": ...}
     chain = (
         {
-            "question": identity,
-            "kb": identity | RunnableLambda(retrieve_kb),
+            "question": lambda x: x["question"],
+            "report": lambda x: (x.get("report") or ""),
+            "kb": kb_runnable,
         }
         | prompt
         | llm
         | StrOutputParser()
     )
+
     return chain
