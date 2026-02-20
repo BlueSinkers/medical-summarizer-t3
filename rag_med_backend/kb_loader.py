@@ -17,7 +17,7 @@ def load_kb_docs(kb_glob_pattern: str = "kb/*"):
             elif path.lower().endswith(".csv"):
                 df = pd.read_csv(path)
                 for _, row in df.iterrows():
-                    text = "\n".join(f"{col}: {row[col]}" for col in df.columns)
+                    text = "\n".join(f"{col}: {str(row[col])}" for col in df.columns)
                     docs.append(Document(page_content=text, metadata={"source": base}))
             else:
                 loader = TextLoader(path, encoding="utf-8")

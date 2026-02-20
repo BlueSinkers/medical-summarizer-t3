@@ -174,21 +174,22 @@ export default function App() {
         {sumOut && (
           <>
             <h4 style={{ marginTop: '1rem' }}>Output</h4>
-            <div style={{ whiteSpace: 'pre-wrap' }}>
+            <div>
               <ReactMarkdown>{sumOut}</ReactMarkdown>
             </div>
           </>
         )}
 
+        {/* Risk summary 
         {riskNotes && (
           <>
             <h4>Risk Summary</h4>
-            {/* riskNotes is a Markdown-like bullet list; render as markdown */}
             <div style={{ whiteSpace: 'pre-wrap' }}>
               <ReactMarkdown>{riskNotes}</ReactMarkdown>
             </div>
           </>
         )}
+        */}
 
         {/* Translation results */}
         {translateError && (
@@ -244,7 +245,7 @@ export default function App() {
         {chatOut && (
           <>
             <h4 style={{ marginTop: '1rem' }}>Answer</h4>
-            <div style={{ whiteSpace: 'pre-wrap' }}>
+            <div>
               <ReactMarkdown>{chatOut}</ReactMarkdown>
             </div>
           </>

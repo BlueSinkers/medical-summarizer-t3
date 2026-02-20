@@ -1,3 +1,6 @@
+# ensure sentences aren't cut off mid-way
+# add context to chunking, keyword-based retrieval, reranker
+
 # main.py
 import os, json, re, asyncio
 from dotenv import load_dotenv
@@ -12,7 +15,7 @@ from pydantic import BaseModel
 from kb_loader import load_kb_docs
 from retriever import (
     build_or_load_index, format_docs,
-    try_load_vectorstore, make_retriever,  # available if needed
+    make_retriever,  # available if needed
 )
 from summarizer_chain import make_summarizer_chain
 from chat_chain import make_chat_chain
@@ -105,7 +108,6 @@ def normalize_report_text(text: str) -> str:
 
     return s.strip()
 
-
 def pretty_quote_for_display(q: str) -> str:
     """
     Display-only prettifier for evidence quotes. Keeps JSON intact elsewhere.
@@ -121,7 +123,6 @@ def pretty_quote_for_display(q: str) -> str:
     # Collapse spaces again after tweaks
     p = re.sub(r'[ \t\f\v]+', ' ', p).strip()
     return p
-
 
 # -------------------------
 # RISKS handling
@@ -241,7 +242,7 @@ async def summarize(req: SummarizeReq):
         format_docs_fn=format_docs
     )
     try:
-        raw_text = chain.invoke(normalized_report)
+        raw_text = chain.invoke({"report": normalized_report})
     except Exception as e:
         # Check for common LLM connection issues (Ollama not running)
         msg = str(e)
@@ -253,14 +254,14 @@ async def summarize(req: SummarizeReq):
             )
         raise e
 
-    risks = _extract_risks_json(raw_text)
-    cleaned_text = _strip_risks_section(raw_text)
-    risk_notes = humanize_risks(risks)
+    # risks = _extract_risks_json(raw_text)
+    # cleaned_text = _strip_risks_section(raw_text)
+    # risk_notes = humanize_risks(risks)
 
     return {
-        "text": cleaned_text,
-        "risks": risks,
-        "risk_notes": risk_notes,
+        "text": raw_text,  # Return the full output without risk extraction
+        "risks": None,
+        "risk_notes": None,
         "ready": True
     }
 

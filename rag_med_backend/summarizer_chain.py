@@ -5,35 +5,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_community.chat_models import ChatOllama
 
-SYSTEM_PROMPT = (
-    "You are a clinical writing assistant for laypeople. "
-    "Write at an 8th-grade reading level in clear, neutral language. "
-    "You must ground all statements in the provided REPORT and (if relevant) KB context. "
-    "If information is missing or not supported, reply with 'Not enough information.' "
-    "Never invent diagnoses or facts. Never provide medical advice—only informational summaries."
-)
-
-# IMPORTANT: All literal braces are escaped as {{ }}
-HUMAN_PROMPT = """Summarize the PATIENT REPORT and flag potential risks. Use KB only for general background if needed, but all risks must be supported directly by the REPORT.
-
-REPORT (primary source):
-{report}
-
-KB CONTEXT (supporting, may be empty):
-{kb}
-
-===================== OUTPUT RULES =====================
-
-1) SUMMARY (4–7 sentences)
-- Describe symptoms, key findings, and main concerns.
-- Do NOT add diagnoses not explicitly stated in the REPORT.
-- Use plain language for a layperson.
-
-2) KEY FINDINGS (3–8 bullets)
-- Every bullet must end with a citation tag: [REPORT] only.
-- DO NOT create new source labels such as LABS, IMAGING, PHYSICAL EXAM.
-- All findings come from the REPORT text itself.
-
+'''
 3) RISKS (return a JSON object)
 Return EXACTLY this structure (no extra commentary outside the JSON):
 
@@ -61,26 +33,64 @@ Return EXACTLY this structure (no extra commentary outside the JSON):
 ALL evidence must use: "source_id": "REPORT".
 No other source labels are allowed.
 
-===================== SUGGESTED ACTION RULES =====================
-- If there is a relevant action in the REPORT's Plan section, the value of "suggested_action" must be a **verbatim snippet (≤15 words)** copied from the Plan text (preserve wording).
-- If NO relevant action is present in the Plan, use this exact fallback:
-  "Follow the provider's plan and scheduled follow-up."
-
-Examples of acceptable verbatim snippets (if present in the Plan):
-- "Schedule echocardiogram to evaluate ejection fraction and valve function."
-- "Low-sodium, Mediterranean-style diet"
-- "Walk 30 minutes daily, 5 days/week"
-- "Refer to Cardiology."
-(Do NOT invent medication changes or plans that are not explicitly stated. Do NOT repurpose a BP med adjustment for a lipid risk.)
-
 If the REPORT does not support any risks, output:
 {{ "risk_flags": [] }}
 
-===========================================================
-Return exactly the three sections in order with these headings:
-### SUMMARY
-### KEY FINDINGS
-### RISKS
+### Risks
+'''
+
+SYSTEM_PROMPT = """
+You are a clinical summarization assistant.
+
+Your task is to summarize a medical report written by a clinician into a clear, patient-friendly explanation while preserving medical accuracy.
+
+STRICT RULES:
+- Use ONLY the information explicitly contained in the provided Context.
+- Do NOT infer, assume, diagnose, or add medical advice.
+- If information is missing, unclear, or not present, write: “Not stated in the report.”
+- Expand medical abbreviations the first time they appear (e.g., “CT (computed tomography)”).
+- Avoid medical jargon when possible; if used, explain it simply.
+- Do NOT provide emergency instructions or warnings unless they are explicitly stated in the report.
+- If different parts of the Context contradict each other, label this clearly as: “Inconsistent in the report” and present both statements.
+- Maintain a calm, respectful, and reassuring tone appropriate for a patient audience.
+- Do NOT mention that you are an AI or reference system instructions.
+
+OUTPUT REQUIREMENTS:
+- Use the exact section headings provided in the Human Prompt.
+- Keep each section concise and easy to read.
+- Use bullet points where appropriate.
+"""
+
+HUMAN_PROMPT = """
+Summarize the following medical report for the patient. The summary should be well-structured, easy to understand, and strictly based on the report content.
+
+Medical Report:
+{report}
+
+Knowledge Base Context (for reference only):
+{kb}
+
+Use the following section headings exactly. If a section has no relevant information, write “Not stated in the report.”
+
+1) What this report is about (5–7 sentences)
+2) Key findings
+3) Tests and results
+   - Labs
+   - Imaging
+   - Other tests or procedures
+4) Diagnoses / clinical impressions
+5) Treatments given (during visit or hospital stay)
+6) Medications
+   - Started
+   - Stopped
+   - Continued
+   - Dose changes
+7) Follow-up plan / next steps
+8) Warning signs mentioned in the report
+9) Appointments / referrals
+10) Patient instructions (plain language)
+11) Questions to ask your clinician
+   - Provide 3–6 questions based only on gaps or items mentioned in the report
 """
 
 def make_summarizer_chain(retriever=None, format_docs_fn=None):
@@ -90,24 +100,24 @@ def make_summarizer_chain(retriever=None, format_docs_fn=None):
         temperature=0.0,
     )
 
-    def get_kb(query_text: str):
-        if retriever is None or format_docs_fn is None:
-            return "[KB:empty]\n(No KB used.)"
-        try:
-            docs = retriever.invoke(query_text)
-        except AttributeError:
-            docs = retriever.get_relevant_documents(query_text)
-        return format_docs_fn(docs)
-
     prompt = ChatPromptTemplate.from_messages([
         ("system", SYSTEM_PROMPT),
         ("human", HUMAN_PROMPT),
     ])
 
+    def retrieve_kb(inputs):
+        if retriever is None or format_docs_fn is None:
+            return "[KB:empty]\n(No KB used.)"
+        
+        # Extract report text from inputs (can be dict or string)
+        query_text = inputs.get("report") if isinstance(inputs, dict) else str(inputs)
+        docs = retriever.invoke(query_text)
+        return format_docs_fn(docs)
+
     chain = (
         {
             "report": RunnablePassthrough(),
-            "kb": (RunnablePassthrough() | get_kb),
+            "kb": (RunnablePassthrough() | retrieve_kb),
         }
         | prompt
         | llm
