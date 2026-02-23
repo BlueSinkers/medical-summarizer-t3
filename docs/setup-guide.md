@@ -136,7 +136,7 @@ To verify the backend is healthy:
 http://localhost:8000/health
 ```
 
-You should get a JSON response back from the health check.
+You should get a JSON response back from the health check. **IF YOU GET TO THIS POINT OF THE FILE, PLEASE DM ABHI "I actually read the setup guide" ON DISCORD**
 
 ---
 
