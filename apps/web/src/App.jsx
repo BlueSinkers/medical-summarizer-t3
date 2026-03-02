@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import * as pdfjsLib from "pdfjs-dist";
+import pdfjsWorker from "pdfjs-dist/build/pdf.worker?url";
 import "./App.css";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 export default function App() {
   const [health, setHealth] = useState(null);
   const [healthErr, setHealthErr] = useState("");
 
   const [report, setReport] = useState("");
+  const [uploadErr, setUploadErr] = useState("");
+  const [isExtractingPdf, setIsExtractingPdf] = useState(false);
   const [useKb, setUseKb] = useState(true);
   const [summary, setSummary] = useState("");
   const [summaryErr, setSummaryErr] = useState("");
@@ -41,6 +47,46 @@ export default function App() {
     };
     loadHealth();
   }, []);
+
+  async function onPdfUpload(e) {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    setUploadErr("");
+    setIsExtractingPdf(true);
+
+    try {
+      let allText = "";
+      for (const file of files) {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items
+            .map((item) => item.str || "")
+            .join(" ")
+            .trim();
+          allText += `\n\n--- Page ${i} (${file.name}) ---\n${pageText}`;
+        }
+      }
+
+      const extracted = allText.trim();
+      if (!extracted) {
+        throw new Error("No readable text found in PDF.");
+      }
+      setReport((prev) => (prev.trim() ? `${prev}\n\n${extracted}` : extracted));
+    } catch (err) {
+      setUploadErr(
+        err.message ||
+          "Could not extract text from PDF. If this is a scanned PDF, OCR support is needed."
+      );
+    } finally {
+      setIsExtractingPdf(false);
+      e.target.value = "";
+    }
+  }
 
   async function doSummarize() {
     setIsSummarizing(true);
@@ -159,6 +205,17 @@ export default function App() {
       <main className="grid">
         <section className="card">
           <h2>Patient Report Input</h2>
+          <label className="file-upload">
+            <input
+              type="file"
+              accept="application/pdf"
+              multiple
+              onChange={onPdfUpload}
+              disabled={isExtractingPdf}
+            />
+            <span>{isExtractingPdf ? "Extracting PDF text..." : "Upload PDF(s)"}</span>
+          </label>
+          {uploadErr && <p className="error">{uploadErr}</p>}
           <textarea
             rows={15}
             value={report}

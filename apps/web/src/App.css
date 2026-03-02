@@ -89,6 +89,22 @@ textarea {
   font-size: 0.95rem;
 }
 
+.file-upload {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px dashed #334155;
+  border-radius: 8px;
+  background: #0b1220;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+.file-upload input {
+  width: auto;
+}
+
 .button-row {
   display: flex;
   gap: 8px;
