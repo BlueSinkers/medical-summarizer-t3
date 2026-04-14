@@ -1,0 +1,35 @@
+:root {
+  --color-cream:     #FFFBF1;
+  --color-warm:      #FFF2D0;
+  --color-blush:     #FFB2B2;
+  --color-red:       #E36A6A;
+
+  /* Surfaces — light and warm */
+  --color-bg-page:   #FFFBF1;
+  --color-bg-card:   #FFF2D0;
+  --color-bg-input:  #FFFBF1;
+
+  /* Borders */
+  --color-border:     #f0d9b0;
+  --color-border-mid: #FFB2B2;
+
+  /* Text */
+  --color-text-primary:    #2a1a1a;
+  --color-text-muted:      #9a7a6a;
+  --color-text-heading:    #c04040;
+  --color-text-subheading: #E36A6A;
+  --color-subtitle:        #b06050;
+
+  /* Buttons */
+  --color-btn-bg:     #E36A6A;
+  --color-btn-text:   #FFFBF1;
+  --color-btn-border: #c04040;
+  --color-btn-hover:  #d45a5a;
+
+  /* Pills */
+  --color-pill-bg:     #FFF2D0;
+  --color-pill-border: #FFB2B2;
+
+  /* Accents */
+  --color-error: #c04040;
+}

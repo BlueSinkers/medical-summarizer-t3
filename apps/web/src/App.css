@@ -1,11 +1,13 @@
+@import "./theme.css";
+
 * {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  background: #0f172a;
-  color: #e2e8f0;
+  background: var(--color-bg-page);
+  color: var(--color-text-primary);
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 }
 
@@ -18,10 +20,11 @@ body {
 header h1 {
   margin: 0;
   font-size: 2rem;
+  color: var(--color-text-primary);
 }
 
 .subtitle {
-  color: #93c5fd;
+  color: var(--color-subtitle);
   margin-top: 8px;
 }
 
@@ -34,11 +37,12 @@ header h1 {
 }
 
 .pill {
-  border: 1px solid #334155;
+  border: 1px solid var(--color-pill-border);
   border-radius: 999px;
   padding: 4px 10px;
   font-size: 0.85rem;
-  background: #111827;
+  background: var(--color-pill-bg);
+  color: var(--color-text-primary);
 }
 
 .grid {
@@ -49,44 +53,87 @@ header h1 {
 }
 
 .card {
-  background: #111827;
-  border: 1px solid #1f2937;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 16px;
-  min-height: 240px;
+  display: flex;
+  flex-direction: column;
 }
 
 .card h2 {
   margin: 0 0 10px;
   font-size: 1.1rem;
-  color: #c7d2fe;
+  color: var(--color-text-heading);
 }
 
 .card h3 {
   margin: 14px 0 8px;
-  color: #c7d2fe;
+  color: var(--color-text-subheading);
 }
 
 textarea,
 input,
 select {
   width: 100%;
-  border: 1px solid #334155;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 10px;
-  background: #0b1220;
-  color: #e2e8f0;
+  background: var(--color-bg-input);
+  color: var(--color-text-primary);
 }
 
 textarea {
-  resize: vertical;
-  min-height: 210px;
+  resize: none;
+  height: 100%;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 .controls {
   margin-top: 10px;
   font-size: 0.95rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  color: var(--color-text-heading);
+  user-select: none;
+}
+
+.toggle {
+  width: 40px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--color-border-mid);
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.2s ease;
+  cursor: pointer;
+}
+
+.toggle--on {
+  background: var(--color-btn-bg);
+}
+
+.toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-text-primary);
+  transition: transform 0.2s ease;
+}
+
+.toggle--on .toggle-thumb {
+  transform: translateX(18px);
 }
 
 .button-row {
@@ -97,34 +144,54 @@ textarea {
 }
 
 button {
-  border: 1px solid #4338ca;
-  background: #312e81;
-  color: #eef2ff;
+  border: 1px solid var(--color-btn-border);
+  background: var(--color-btn-bg);
+  color: var(--color-btn-text);
   border-radius: 8px;
   padding: 8px 12px;
   cursor: pointer;
+  font-weight: 500;
+  transition: background 0.15s ease;
+}
+
+button:hover:not(:disabled) {
+  background: var(--color-btn-hover);
 }
 
 button:disabled {
   cursor: not-allowed;
-  opacity: 0.55;
+  opacity: 0.45;
 }
 
 .muted {
-  color: #94a3b8;
+  color: var(--color-text-muted);
 }
 
 .error {
-  color: #fca5a5;
+  color: var(--color-error);
+}
+
+.content-area {
+  height: 320px;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 8px;
+}
+
+.content-area textarea,
+.content-area .markdown,
+.content-area .muted {
+  flex: 1;
+  min-height: 0;
 }
 
 .markdown {
-  margin-top: 8px;
-  border: 1px solid #1f2937;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: #0b1220;
+  background: var(--color-bg-input);
   padding: 12px;
   white-space: pre-wrap;
+  overflow-y: auto;
 }
 
 @media (max-width: 960px) {

@@ -1,6 +1,8 @@
+@import "./theme.css";
+
 :root {
-  color: #e2e8f0;
-  background-color: #0f172a;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-page);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;

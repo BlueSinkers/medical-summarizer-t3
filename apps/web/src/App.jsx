@@ -159,21 +159,12 @@ export default function App() {
       <main className="grid">
         <section className="card">
           <h2>Patient Report Input</h2>
-          <textarea
-            rows={15}
-            value={report}
-            onChange={(e) => setReport(e.target.value)}
-            placeholder="Paste medical report text here..."
-          />
-          <div className="controls">
-            <label>
-              <input
-                type="checkbox"
-                checked={useKb}
-                onChange={(e) => setUseKb(e.target.checked)}
-              />
-              Use KB retrieval context
-            </label>
+          <div className="content-area">
+            <textarea
+              value={report}
+              onChange={(e) => setReport(e.target.value)}
+              placeholder="Paste medical report text here..."
+            />
           </div>
           <div className="button-row">
             <button disabled={!canSummarize || isSummarizing} onClick={doSummarize}>
@@ -183,18 +174,28 @@ export default function App() {
               Translate report
             </button>
           </div>
+          <div className="controls">
+            <label className="toggle-label">
+              <span>Use KB:</span>
+              <div className={`toggle${useKb ? " toggle--on" : ""}`} onClick={() => setUseKb(!useKb)}>
+                <div className="toggle-thumb" />
+              </div>
+            </label>
+          </div>
           {summaryErr && <p className="error">{summaryErr}</p>}
         </section>
 
         <section className="card">
           <h2>Summary</h2>
-          {summary ? (
-            <div className="markdown">
-              <ReactMarkdown>{summary}</ReactMarkdown>
-            </div>
-          ) : (
-            <p className="muted">Summary output appears here.</p>
-          )}
+          <div className="content-area">
+            {summary ? (
+              <div className="markdown">
+                <ReactMarkdown>{summary}</ReactMarkdown>
+              </div>
+            ) : (
+              <p className="muted">Summary output appears here.</p>
+            )}
+          </div>
           <div className="button-row">
             <button disabled={!summary.trim()} onClick={() => doTranslate("summary")}>
               Translate summary
