@@ -1,0 +1,65 @@
+.signin-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-page);
+  padding: 24px;
+}
+
+.signin-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 480px;
+}
+
+.signin-title {
+  margin: 0;
+  font-size: 1.6rem;
+  color: var(--color-text-primary);
+  text-align: center;
+}
+
+.signin-subtitle {
+  margin: 0;
+  color: var(--color-subtitle);
+  font-size: 0.95rem;
+}
+
+.signin-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.signin-divider::before,
+.signin-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
+.signin-guest-btn {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: 0.95rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.signin-guest-btn:hover {
+  background: var(--color-warm);
+}

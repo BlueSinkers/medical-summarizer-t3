@@ -1,8 +1,57 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import "./App.css";
 
-export default function App() {
+// Clerk is optional — if VITE_CLERK_PUBLISHABLE_KEY is not set, auth UI is hidden.
+// When ClerkProvider is absent (see main.jsx), these hooks still import fine but
+// simply won't have a provider — so we gate all usage on clerkEnabled.
+import { useAuth, useUser, UserButton } from "@clerk/clerk-react";
+
+const clerkEnabled = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
+
+function useAuthFetch() {
+  const { getToken } = clerkEnabled ? useAuth() : {};
+
+  return useCallback(
+    async (url, options = {}) => {
+      const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+      if (getToken) {
+        try {
+          const token = await getToken();
+          if (token) headers["Authorization"] = `Bearer ${token}`;
+        } catch {
+          // token fetch failed; proceed as guest
+        }
+      }
+      return fetch(url, { ...options, headers });
+    },
+    [getToken]
+  );
+}
+
+function AuthBar({ onSignOut }) {
+  if (!clerkEnabled) return null;
+
+  const { isSignedIn } = useUser();
+
+  if (isSignedIn) {
+    return (
+      <div className="auth-bar">
+        <UserButton />
+      </div>
+    );
+  }
+
+  return (
+    <div className="auth-bar">
+      <button className="btn-ghost" onClick={onSignOut}>
+        Sign in
+      </button>
+    </div>
+  );
+}
+
+export default function App({ onSignOut }) {
   const [health, setHealth] = useState(null);
   const [healthErr, setHealthErr] = useState("");
 
@@ -29,6 +78,8 @@ export default function App() {
     [question, report]
   );
 
+  const authFetch = useAuthFetch();
+
   useEffect(() => {
     const loadHealth = async () => {
       try {
@@ -51,9 +102,8 @@ export default function App() {
     setTranslatedChat("");
 
     try {
-      const res = await fetch("/api/summarize", {
+      const res = await authFetch("/api/summarize", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ report, use_kb: useKb }),
       });
       const data = await res.json();
@@ -76,9 +126,8 @@ export default function App() {
     setTranslatedChat("");
 
     try {
-      const res = await fetch("/api/chat", {
+      const res = await authFetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question, report, use_kb: useKb }),
       });
       const data = await res.json();
@@ -115,14 +164,9 @@ export default function App() {
     }
 
     try {
-      const res = await fetch("/api/translate", {
+      const res = await authFetch("/api/translate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items,
-          source_lang: "en",
-          target_lang: targetLang,
-        }),
+        body: JSON.stringify({ items, source_lang: "en", target_lang: targetLang }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -144,11 +188,16 @@ export default function App() {
   return (
     <div className="app-shell">
       <header>
-        <h1>Medical Report Summarizer + Chat</h1>
-        <p className="subtitle">
-          Runnable baseline from consolidated branch work. Informational use only,
-          not medical advice.
-        </p>
+        <div className="header-top">
+          <div>
+            <h1>Medical Report Summarizer + Chat</h1>
+            <p className="subtitle">
+              Runnable baseline from consolidated branch work. Informational use only,
+              not medical advice.
+            </p>
+          </div>
+          <AuthBar onSignOut={onSignOut} />
+        </div>
         <div className="meta">
           <span className="pill">API: {health ? "connected" : "unknown"}</span>
           {health?.meta?.status && <span className="pill">Index: {health.meta.status}</span>}

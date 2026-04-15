@@ -1,6 +1,7 @@
 fastapi
 uvicorn[standard]
 python-dotenv
+PyJWT[crypto]
 pypdf
 regex
 pandas

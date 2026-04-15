@@ -17,6 +17,37 @@ body {
   padding: 24px;
 }
 
+.header-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.auth-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  padding-top: 4px;
+}
+
+.btn-ghost {
+  border: 1px solid var(--color-btn-border);
+  background: transparent;
+  color: var(--color-text-heading);
+  border-radius: 8px;
+  padding: 7px 14px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: background 0.15s ease;
+}
+
+.btn-ghost:hover {
+  background: var(--color-warm);
+}
+
 header h1 {
   margin: 0;
   font-size: 2rem;

@@ -4,8 +4,10 @@ import re
 from typing import List, Optional
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+
+from auth import optional_user
 from pydantic import BaseModel
 
 from chat_chain import make_chat_chain
@@ -167,8 +169,15 @@ async def health():
     return {"ready": READY_EVENT.is_set(), "meta": READY_META}
 
 
+@app.get("/me")
+async def me(user=Depends(optional_user)):
+    if user is None:
+        return {"authenticated": False}
+    return {"authenticated": True, "user_id": user.get("sub"), "email": user.get("email")}
+
+
 @app.post("/summarize")
-async def summarize(req: SummarizeReq):
+async def summarize(req: SummarizeReq, user=Depends(optional_user)):
     global LAST_REPORT_TEXT
     report = normalize_report_text(req.report)
     if not report:
@@ -207,7 +216,7 @@ async def summarize(req: SummarizeReq):
 
 
 @app.post("/chat")
-async def chat(req: ChatReq):
+async def chat(req: ChatReq, user=Depends(optional_user)):
     report = normalize_report_text(req.report or LAST_REPORT_TEXT or "")
     question = (req.question or "").strip()
 
@@ -237,7 +246,7 @@ async def chat(req: ChatReq):
 
 
 @app.post("/translate")
-async def translate(req: TranslateReq):
+async def translate(req: TranslateReq, user=Depends(optional_user)):
     if not req.items:
         return {"translations": [], "error": "No items provided."}
 
