@@ -29,6 +29,24 @@
   font-size: 0.95rem;
 }
 
+.signin-btn {
+  width: 100%;
+  padding: 11px;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-btn-bg);
+  color: var(--color-btn-text);
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.signin-btn:hover {
+  background: var(--color-btn-hover);
+}
+
 .signin-divider {
   display: flex;
   align-items: center;
