@@ -1,55 +1,13 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
-import ReactMarkdown from "react-markdown";
+import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 
-// Clerk is optional — if VITE_CLERK_PUBLISHABLE_KEY is not set, auth UI is hidden.
-// When ClerkProvider is absent (see main.jsx), these hooks still import fine but
-// simply won't have a provider — so we gate all usage on clerkEnabled.
-import { useAuth, useUser, UserButton } from "@clerk/clerk-react";
-
-const clerkEnabled = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
-
-function useAuthFetch() {
-  const { getToken } = clerkEnabled ? useAuth() : {};
-
-  return useCallback(
-    async (url, options = {}) => {
-      const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
-      if (getToken) {
-        try {
-          const token = await getToken();
-          if (token) headers["Authorization"] = `Bearer ${token}`;
-        } catch {
-          // token fetch failed; proceed as guest
-        }
-      }
-      return fetch(url, { ...options, headers });
-    },
-    [getToken]
-  );
-}
-
-function AuthBar({ onSignOut }) {
-  if (!clerkEnabled) return null;
-
-  const { isSignedIn } = useUser();
-
-  if (isSignedIn) {
-    return (
-      <div className="auth-bar">
-        <UserButton />
-      </div>
-    );
-  }
-
-  return (
-    <div className="auth-bar">
-      <button className="btn-ghost" onClick={onSignOut}>
-        Sign in
-      </button>
-    </div>
-  );
-}
+import { useAuthFetch } from "./hooks/useAuthFetch";
+import AuthBar from "./components/AuthBar";
+import ViewToggle from "./components/ViewToggle";
+import ReportInputCard from "./components/ReportInputCard";
+import SummaryCard from "./components/SummaryCard";
+import ChatCard from "./components/ChatCard";
+import TranslationCard from "./components/TranslationCard";
 
 export default function App({ onSignOut }) {
   const [health, setHealth] = useState(null);
@@ -65,6 +23,8 @@ export default function App({ onSignOut }) {
   const [chat, setChat] = useState("");
   const [chatErr, setChatErr] = useState("");
   const [isChatting, setIsChatting] = useState(false);
+
+  const [view, setView] = useState("both");
 
   const [targetLang, setTargetLang] = useState("es");
   const [translatedReport, setTranslatedReport] = useState("");
@@ -107,9 +67,7 @@ export default function App({ onSignOut }) {
         body: JSON.stringify({ report, use_kb: useKb }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.detail || "Failed to summarize report.");
-      }
+      if (!res.ok) throw new Error(data.detail || "Failed to summarize report.");
       setSummary(data.text || "");
     } catch (err) {
       setSummaryErr(err.message || "Failed to summarize report.");
@@ -131,9 +89,7 @@ export default function App({ onSignOut }) {
         body: JSON.stringify({ question, report, use_kb: useKb }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.detail || "Failed to get chat response.");
-      }
+      if (!res.ok) throw new Error(data.detail || "Failed to get chat response.");
       setChat(data.text || "");
     } catch (err) {
       setChatErr(err.message || "Failed to get chat response.");
@@ -149,15 +105,10 @@ export default function App({ onSignOut }) {
     setTranslatedChat("");
 
     const items = [];
-    if ((kind === "report" || kind === "all") && report.trim()) {
-      items.push({ id: "report", text: report });
-    }
-    if ((kind === "summary" || kind === "all") && summary.trim()) {
-      items.push({ id: "summary", text: summary });
-    }
-    if ((kind === "chat" || kind === "all") && chat.trim()) {
-      items.push({ id: "chat", text: chat });
-    }
+    if ((kind === "report" || kind === "all") && report.trim()) items.push({ id: "report", text: report });
+    if ((kind === "summary" || kind === "all") && summary.trim()) items.push({ id: "summary", text: summary });
+    if ((kind === "chat" || kind === "all") && chat.trim()) items.push({ id: "chat", text: chat });
+
     if (!items.length) {
       setTranslationErr("Nothing to translate yet.");
       return;
@@ -169,12 +120,8 @@ export default function App({ onSignOut }) {
         body: JSON.stringify({ items, source_lang: "en", target_lang: targetLang }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.detail || "Translation request failed.");
-      }
-      if (data.error) {
-        setTranslationErr(data.error);
-      }
+      if (!res.ok) throw new Error(data.detail || "Translation request failed.");
+      if (data.error) setTranslationErr(data.error);
       for (const entry of data.translations || []) {
         if (entry.id === "report") setTranslatedReport(entry.translated || "");
         if (entry.id === "summary") setTranslatedSummary(entry.translated || "");
@@ -205,120 +152,52 @@ export default function App({ onSignOut }) {
         </div>
       </header>
 
+      <ViewToggle view={view} onViewChange={setView} />
+
       <main className="grid">
-        <section className="card">
-          <h2>Patient Report Input</h2>
-          <div className="content-area">
-            <textarea
-              value={report}
-              onChange={(e) => setReport(e.target.value)}
-              placeholder="Paste medical report text here..."
-            />
-          </div>
-          <div className="button-row">
-            <button disabled={!canSummarize || isSummarizing} onClick={doSummarize}>
-              {isSummarizing ? "Summarizing..." : "Summarize"}
-            </button>
-            <button disabled={!report.trim()} onClick={() => doTranslate("report")}>
-              Translate report
-            </button>
-          </div>
-          <div className="controls">
-            <label className="toggle-label">
-              <span>Use KB:</span>
-              <div className={`toggle${useKb ? " toggle--on" : ""}`} onClick={() => setUseKb(!useKb)}>
-                <div className="toggle-thumb" />
-              </div>
-            </label>
-          </div>
-          {summaryErr && <p className="error">{summaryErr}</p>}
-        </section>
-
-        <section className="card">
-          <h2>Summary</h2>
-          <div className="content-area">
-            {summary ? (
-              <div className="markdown">
-                <ReactMarkdown>{summary}</ReactMarkdown>
-              </div>
-            ) : (
-              <p className="muted">Summary output appears here.</p>
-            )}
-          </div>
-          <div className="button-row">
-            <button disabled={!summary.trim()} onClick={() => doTranslate("summary")}>
-              Translate summary
-            </button>
-          </div>
-          {translatedSummary && (
-            <>
-              <h3>Translated Summary ({targetLang})</h3>
-              <div className="markdown">
-                <ReactMarkdown>{translatedSummary}</ReactMarkdown>
-              </div>
-            </>
-          )}
-        </section>
-
-        <section className="card">
-          <h2>Chatbot</h2>
-          <input
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            placeholder="Ask a question about the report..."
+        {(view === "report" || view === "both") && (
+          <ReportInputCard
+            report={report}
+            onReportChange={setReport}
+            useKb={useKb}
+            onUseKbChange={setUseKb}
+            canSummarize={canSummarize}
+            isSummarizing={isSummarizing}
+            onSummarize={doSummarize}
+            onTranslate={doTranslate}
+            summaryErr={summaryErr}
           />
-          <div className="button-row">
-            <button disabled={!canChat || isChatting} onClick={doChat}>
-              {isChatting ? "Asking..." : "Ask"}
-            </button>
-            <button disabled={!chat.trim()} onClick={() => doTranslate("chat")}>
-              Translate answer
-            </button>
-          </div>
-          {chatErr && <p className="error">{chatErr}</p>}
-          {chat ? (
-            <div className="markdown">
-              <ReactMarkdown>{chat}</ReactMarkdown>
-            </div>
-          ) : (
-            <p className="muted">Chat answers appear here.</p>
-          )}
-          {translatedChat && (
-            <>
-              <h3>Translated Answer ({targetLang})</h3>
-              <div className="markdown">
-                <ReactMarkdown>{translatedChat}</ReactMarkdown>
-              </div>
-            </>
-          )}
-        </section>
+        )}
 
-        <section className="card">
-          <h2>Translation Options</h2>
-          <label>
-            Target language:
-            <select value={targetLang} onChange={(e) => setTargetLang(e.target.value)}>
-              <option value="es">Spanish</option>
-              <option value="fr">French</option>
-              <option value="de">German</option>
-              <option value="pt">Portuguese</option>
-              <option value="zh">Chinese (Simplified)</option>
-              <option value="ar">Arabic</option>
-            </select>
-          </label>
-          <div className="button-row">
-            <button onClick={() => doTranslate("all")}>Translate report + summary + chat</button>
-          </div>
-          {translationErr && <p className="error">{translationErr}</p>}
-          {translatedReport && (
-            <>
-              <h3>Translated Report ({targetLang})</h3>
-              <div className="markdown">
-                <ReactMarkdown>{translatedReport}</ReactMarkdown>
-              </div>
-            </>
-          )}
-        </section>
+        {(view === "summary" || view === "both") && (
+          <SummaryCard
+            summary={summary}
+            onTranslate={doTranslate}
+            translatedSummary={translatedSummary}
+            targetLang={targetLang}
+          />
+        )}
+
+        <ChatCard
+          question={question}
+          onQuestionChange={setQuestion}
+          canChat={canChat}
+          isChatting={isChatting}
+          onChat={doChat}
+          onTranslate={doTranslate}
+          chat={chat}
+          chatErr={chatErr}
+          translatedChat={translatedChat}
+          targetLang={targetLang}
+        />
+
+        <TranslationCard
+          targetLang={targetLang}
+          onTargetLangChange={setTargetLang}
+          onTranslate={doTranslate}
+          translationErr={translationErr}
+          translatedReport={translatedReport}
+        />
       </main>
     </div>
   );
